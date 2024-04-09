@@ -4,6 +4,10 @@ use clap::Parser;
 use command::Cli;
 use quic::Endpoint;
 
+
+const FRAME_MSG_BYTE_SIZE: usize = 1382411;
+const AUDIO_MSG_BYTE_SIZE: usize = 3851;
+
 #[tokio::main]
 async fn main() {
     let cli = command::Cli::parse();
@@ -53,6 +57,6 @@ fn config(cli: Cli) -> anyhow::Result<Endpoint> {
     Ok(endpoint)
 }
 
+mod call;
 mod command;
 mod wait;
-mod call;

@@ -5,16 +5,16 @@ pub enum Message {
     Call(String),
     QueryUsers,
     // call之后传输
-    Video {
-        data: Vec<u8>,
-        from: String,
-        to: String,
-    },
-    Audio {
-        data: Vec<f32>,
-        from: String,
-        to: String,
-    },
+    Video(
+        Vec<u8>,
+        // from: String,
+        // to: String,
+    ),
+    Audio(
+        Vec<f32>,
+        // from: String,
+        // to: String,
+    ),
     Close,
     //服务器传
     Result(Info),
@@ -42,3 +42,28 @@ impl Info {
         }
     }
 }
+
+#[test]
+fn fun1() {
+    let v: Vec<u8> = vec![0; 691200];
+    let m = Message::Video(v);
+    let m = serde_json::to_string(&m).unwrap();
+    println!("{}", m.as_bytes().len())
+}
+
+#[test]
+fn fun2() {
+    let v: Vec<f32> = vec![0.; 960];
+    let m = Message::Audio(v);
+    let m = serde_json::to_string(&m).unwrap();
+    println!("{}", m.as_bytes().len())
+}
+
+
+#[test]
+fn f(){
+    let v: Vec<u8> = vec![0; 960];
+    println!("{}",v.as_slice().len())
+    
+}
+

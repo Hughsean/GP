@@ -8,40 +8,40 @@ pub async fn handle_connection(conn: quic::Connecting, map: ClientMap) -> anyhow
     async {
         println!("连接建立");
         // 只使用一个双向流
-        loop {
-            //接收流
-            let stream = connection.accept_bi().await;
+        // loop {
+        //接收流
+        let stream = connection.accept_bi().await;
+        let stream = match stream {
+            Err(quic::ConnectionError::ApplicationClosed { .. }) => {
+                println!("连接关闭");
+                return Ok(());
+            }
+            Err(e) => {
+                return Err(anyhow!("{}", e.to_string()));
+            }
+            Ok(s) => s,
+        };
 
-            let stream = match stream {
-                Err(quic::ConnectionError::ApplicationClosed { .. }) => {
-                    println!("连接关闭");
-                    return Ok(());
-                }
-                Err(e) => {
-                    return Err(anyhow!("{}", e.to_string()));
-                }
-                Ok(s) => s,
-            };
+        let (send, mut recv) = stream;
+        // 读取请求
 
-            let (send, mut recv) = stream;
-            // 读取请求
-
-            match recv.read_to_end(usize::MAX).await {
-                Ok(data) => match serde_json::from_slice::<common::Message>(&data) {
-                    Ok(msg) => {
-                        //处理请求
-                        println!("into _req");
-                        if let Err(e) =
-                            handle_req(msg, map.clone(), send, recv, connection.clone()).await
-                        {
-                            println!("{}({}): {}", file!(), line!(), e.to_string())
-                        }
+        match recv.read_to_end(usize::MAX).await {
+            Ok(data) => match serde_json::from_slice::<common::Message>(&data) {
+                Ok(msg) => {
+                    //处理请求
+                    println!("into _req");
+                    if let Err(e) =
+                        handle_req(msg, map.clone(), send, recv, connection.clone()).await
+                    {
+                        println!("{}({}): {}", file!(), line!(), e.to_string())
                     }
-                    Err(e) => println!("{}({}): {}", file!(), line!(), e.to_string()),
-                },
+                }
                 Err(e) => println!("{}({}): {}", file!(), line!(), e.to_string()),
-            };
-        }
+            },
+            Err(e) => println!("{}({}): {}", file!(), line!(), e.to_string()),
+        };
+        // }
+        Ok(())
     }
     .await?;
 
@@ -71,16 +71,16 @@ async fn handle_req(
 
                 send.write_all(msg.as_bytes()).await.unwrap();
                 println!("wait 回传");
-                println!("{} 等待接听会话", &s);
+                println!("{} 加入等待接听列表", &s);
                 lock.insert(s, Client { conn });
             }
             send.finish().await.unwrap();
         }
-        common::Message::Call(s) => {
+        common::Message::Call(name) => {
             let mut lock = map.lock().await;
             let msg;
 
-            let contains = lock.contains_key(&s);
+            let contains = lock.contains_key(&name);
             //查看是否存在被呼叫用户
             if !contains {
                 msg = common::Message::Result(common::Info::Err);
@@ -95,9 +95,9 @@ async fn handle_req(
                 return Ok(());
             }
 
-            let (_k, ca) = lock.remove_entry(&s).unwrap();
+            let ca = Client { conn };
+            let cb = lock.remove(&name).unwrap();
             drop(lock);
-            let cb = Client { conn };
 
             handle_call::handle_call(ca, cb).await?;
             // 初始化用户呼叫的流
@@ -145,9 +145,7 @@ async fn handle_req(
                 serde_json::to_string(&common::Message::Result(common::Info::UserList(v))).unwrap();
             send.write_all(buf.as_bytes()).await.unwrap();
         }
-        _ => {
-            todo!()
-        }
+        _ => return Err(anyhow!("时序错误")),
     }
     Ok(())
 }

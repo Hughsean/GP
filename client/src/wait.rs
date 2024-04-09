@@ -4,6 +4,7 @@ use anyhow::{anyhow, Result};
 use common::Message;
 use quic::{Connection, Endpoint, RecvStream, SendStream};
 
+//
 pub async fn wait(
     endpoint: Endpoint,
     remote_addr: SocketAddr,
@@ -36,7 +37,11 @@ pub async fn wait(
 }
 
 async fn waitcall(conn: Connection) -> anyhow::Result<()> {
-    let (send, recv) = conn.accept_bi().await?;
+    // 音频
+    let (mut audio_send, mut audio_recv) = conn.accept_bi().await?;
+    // 视频
+    let (mut video_send, video_recv) = conn.open_bi().await?;
 
+    
     Ok(())
 }

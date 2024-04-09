@@ -1,6 +1,13 @@
-use std::{collections::HashMap, fs, net::SocketAddr, sync::Arc};
+use std::{collections::HashMap, sync::Arc};
 
-use config::Config;
+use config::{make_endpoint, Config};
+
+const FRAME_LEN: usize = 691200;
+const AUDIO_LEN: usize = 960;
+
+
+const FRAME_MSG_BYTE_SIZE: usize = 1382411;
+const AUDIO_MSG_BYTE_SIZE: usize = 3851;
 
 #[derive(Debug)]
 struct Client {
@@ -20,28 +27,7 @@ fn main() {
 async fn run(config: Config) -> anyhow::Result<()> {
     let map = Arc::new(tokio::sync::Mutex::new(HashMap::new()));
 
-    let listen: SocketAddr = config.listen.parse()?;
-
-    let (certs, key) = {
-        let key = fs::read(&config.key_path)?;
-        let cert = fs::read(&config.cert_path)?;
-        let key = rustls::PrivateKey(key);
-        let cert = rustls::Certificate(cert);
-        (vec![cert], key)
-    };
-
-    let server_crypto = rustls::ServerConfig::builder()
-        .with_safe_defaults()
-        .with_no_client_auth()
-        .with_single_cert(certs, key)?;
-
-    let mut server_config = quic::ServerConfig::with_crypto(Arc::new(server_crypto));
-
-    let transport_config = Arc::get_mut(&mut server_config.transport).unwrap();
-    transport_config.max_concurrent_uni_streams(0_u8.into());
-
-    let endpoint = quic::Endpoint::server(server_config, listen)?;
-
+    let endpoint = make_endpoint(config)?;
     //
     while let Some(conn) = endpoint.accept().await {
         println!("连接创建");
