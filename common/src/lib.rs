@@ -16,7 +16,7 @@ pub enum Message {
         // to: String,
     ),
     Close,
-    //服务器传
+    // 服务器向客户端发送
     Result(Info),
 }
 
@@ -24,7 +24,6 @@ pub enum Message {
 pub enum Info {
     Ok,
     Err,
-    Close,
     UserList(Vec<String>),
 }
 
@@ -35,17 +34,17 @@ impl Info {
             _ => false,
         }
     }
-    pub fn is_close(&self) -> bool {
-        match self {
-            Info::Close => true,
-            _ => false,
-        }
-    }
+    // pub fn is_close(&self) -> bool {
+    //     match self {
+    //         Info::Close => true,
+    //         _ => false,
+    //     }
+    // }
 }
 
 #[test]
 fn fun1() {
-    let v: Vec<u8> = vec![0; 691200];
+    let v: Vec<u8> = vec![0; 921600];
     let m = Message::Video(v);
     let m = serde_json::to_string(&m).unwrap();
     println!("{}", m.as_bytes().len())
@@ -64,6 +63,5 @@ fn fun2() {
 fn f(){
     let v: Vec<u8> = vec![0; 960];
     println!("{}",v.as_slice().len())
-    
 }
 

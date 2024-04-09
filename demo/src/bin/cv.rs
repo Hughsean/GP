@@ -4,9 +4,9 @@ fn capture_video() {
     // 0 是默认摄像头
     let mut cam = videoio::VideoCapture::new(0, videoio::CAP_ANY).unwrap();
 
-    cam.set(opencv::videoio::CAP_PROP_FPS, 15f64).unwrap();
-    cam.set(videoio::CAP_PROP_FRAME_WIDTH, 400f64).unwrap();
-    cam.set(videoio::CAP_PROP_FRAME_HEIGHT, 300f64).unwrap();
+    // cam.set(opencv::videoio::CAP_PROP_FPS, 15f64).unwrap();
+    // cam.set(videoio::CAP_PROP_FRAME_WIDTH, 300f64).unwrap();
+    // cam.set(videoio::CAP_PROP_FRAME_HEIGHT, 200f64).unwrap();
 
     let opened = videoio::VideoCapture::is_opened(&cam).unwrap();
     if !opened {

@@ -49,7 +49,7 @@ impl Config {
 impl Default for Config {
     fn default() -> Self {
         Self {
-            listen: "127.0.0.1:12345".into(),
+            listen: "0.0.0.0:12345".into(),
             cert_path: "cert/cert.der".into(),
             key_path: "cert/key.der".into(),
         }

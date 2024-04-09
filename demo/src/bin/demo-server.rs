@@ -47,33 +47,34 @@ async fn run() -> anyhow::Result<()> {
 async fn handle_request(
     (mut send, mut recv): (quic::SendStream, quic::RecvStream),
 ) -> anyhow::Result<()> {
-    let req = recv
-        .read_to_end(usize::MAX)
-        .await
-        .map_err(|e| anyhow::anyhow!("failed reading request: {}", e))?;
+    let mut v: Vec<u8> = vec![0; 1843211];
+    recv.read_exact(&mut v).await;
+    println!("read");
+    // let req = recv
+    //     .read_to_end(usize::MAX)
+    //     .await
+    //     .map_err(|e| anyhow::anyhow!("failed reading request: {}", e))?;
 
-    let r: demo::R = serde_json::from_slice(&req)?;
-    println!("{r:?}");
-    //
-    let response = "from server";
+    // let r: demo::R = serde_json::from_slice(&req)?;
+    // println!("{r:?}");
+    // //
+    // let response = "from server";
 
-    // Write the response
-    send.write_all(response.as_bytes())
-        .await
-        .map_err(|e| anyhow::anyhow!("failed to send response: {}", e))?;
+    // // Write the response
+    // send.write_all(response.as_bytes())
+    //     .await
+    //     .map_err(|e| anyhow::anyhow!("failed to send response: {}", e))?;
 
-    // Gracefully terminate the stream
-    send.finish()
-        .await
-        .map_err(|e| anyhow::anyhow!("failed to shutdown stream: {}", e))?;
+    // // Gracefully terminate the stream
+    // send.finish()
+    //     .await
+    //     .map_err(|e| anyhow::anyhow!("failed to shutdown stream: {}", e))?;
     Ok(())
 }
 
 async fn handle_connection(conn: quic::Connecting) -> anyhow::Result<()> {
     let connection = conn.await?;
     async {
-        println!("established");
-        // Each stream initiated by the client constitutes a new request.
         loop {
             let stream = connection.accept_bi().await;
             let stream = match stream {
@@ -90,7 +91,7 @@ async fn handle_connection(conn: quic::Connecting) -> anyhow::Result<()> {
             tokio::spawn(async move {
                 if let Err(e) = fut.await {
                     println!("failed: {reason}", reason = e.to_string());
-                }else {
+                } else {
                     println!("流处理结束")
                 }
             });
