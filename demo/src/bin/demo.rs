@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
@@ -21,20 +23,24 @@ enum Commands {
 }
 
 fn main() {
-    let cli = Cli::parse();
+    run();
+}
 
-    // You can check for the existence of subcommands, and if found use their
-    // matches just as you would the top level cmd
-    match &cli.command {
-        Some(Commands::Test { list }) => {
-            if *list {
-                println!("Printing testing lists...");
-            } else {
-                println!("Not printing testing lists...");
-            }
-        }
-        None => {}
-    }
+#[tokio::main]
+async fn run() {
+    ff().await;
+}
 
-    // Continued program logic goes here...
+async fn ff() {
+    let t1 = tokio::spawn(async {
+        tokio::time::sleep(Duration::from_secs(3)).await;
+        println!("1");
+    });
+
+    let t2 = tokio::spawn(async {
+        tokio::time::sleep(Duration::from_secs(3)).await;
+        println!("2");
+    });
+    let _ = tokio::join!(t1, t2);
+    println!("done")
 }

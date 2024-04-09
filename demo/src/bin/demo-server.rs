@@ -78,7 +78,7 @@ async fn handle_connection(conn: quic::Connecting) -> anyhow::Result<()> {
             let stream = connection.accept_bi().await;
             let stream = match stream {
                 Err(quic::ConnectionError::ApplicationClosed { .. }) => {
-                    println!("connection closed");
+                    println!("连接关闭");
                     return Ok(());
                 }
                 Err(e) => {
@@ -90,6 +90,8 @@ async fn handle_connection(conn: quic::Connecting) -> anyhow::Result<()> {
             tokio::spawn(async move {
                 if let Err(e) = fut.await {
                     println!("failed: {reason}", reason = e.to_string());
+                }else {
+                    println!("流处理结束")
                 }
             });
         }

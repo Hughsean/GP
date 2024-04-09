@@ -1,25 +1,20 @@
-use std::{
-    collections::HashMap,
-    fs,
-    net::SocketAddr,
-    sync::{Arc, Mutex},
-};
+use std::{collections::HashMap, fs, net::SocketAddr, sync::Arc};
 
 use config::Config;
 
 #[derive(Debug)]
 struct Client {
-    send: quic::SendStream,
-    recv: quic::RecvStream,
+    pub conn: quic::Connection,
 }
-
-// recv:std::sync::mpsc::Receiver<common::Message>,
-// _conn: quic::Connection,
-unsafe impl Send for Client {}
 
 type ClientMap = Arc<tokio::sync::Mutex<HashMap<String, Client>>>;
 
-fn main() {}
+fn main() {
+    let config = Config::new(None);
+    if let Err(e) = run(config) {
+        println!("Err: {}", e.to_string())
+    }
+}
 
 #[tokio::main]
 async fn run(config: Config) -> anyhow::Result<()> {
@@ -47,13 +42,13 @@ async fn run(config: Config) -> anyhow::Result<()> {
 
     let endpoint = quic::Endpoint::server(server_config, listen)?;
 
-    ///
+    //
     while let Some(conn) = endpoint.accept().await {
-        println!("connection incoming");
+        println!("连接创建");
         let fut = handler::handle_connection(conn, map.clone());
         tokio::spawn(async move {
             if let Err(e) = fut.await {
-                println!("connection failed: {reason}", reason = e.to_string())
+                println!("连接失败: {reason}", reason = e.to_string())
             }
         });
     }

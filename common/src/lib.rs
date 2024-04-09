@@ -17,13 +17,28 @@ pub enum Message {
     },
     Close,
     //服务器传
-    Result(Info, String),
+    Result(Info),
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub enum Info {
+    Ok,
+    Err,
     Close,
-    UserNameNotFound,
-    UserNameExisted,
     UserList(Vec<String>),
+}
+
+impl Info {
+    pub fn is_ok(&self) -> bool {
+        match self {
+            Info::Ok => true,
+            _ => false,
+        }
+    }
+    pub fn is_close(&self) -> bool {
+        match self {
+            Info::Close => true,
+            _ => false,
+        }
+    }
 }

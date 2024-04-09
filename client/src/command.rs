@@ -1,6 +1,6 @@
 use clap::{Parser, Subcommand};
 
-#[derive(Parser)]
+#[derive(Parser, Clone)]
 #[command(version, about, long_about = None)]
 pub struct Cli {
     /// 自己的用户名
@@ -9,7 +9,9 @@ pub struct Cli {
     /// 服务器地址
     #[arg(short, long)]
     pub addr: String,
-
+    /// 服务器名称
+    #[arg(short, long)]
+    pub server: String,
     /// 证书路径
     #[arg(short, long)]
     pub cert: String,
@@ -18,7 +20,7 @@ pub struct Cli {
     pub command: Commands,
 }
 
-#[derive(Subcommand)]
+#[derive(Subcommand, Clone)]
 pub enum Commands {
     /// 在服务器上挂机等待
     Wait,

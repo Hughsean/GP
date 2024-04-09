@@ -14,7 +14,7 @@ pub(crate) struct Config {
 
 
 impl Config {
-    fn new(config: Option<&str>) -> Self {
+   pub fn new(config: Option<&str>) -> Self {
         let default = Default::default();
         match config {
             Some(path) => match fs::read_to_string(path) {
