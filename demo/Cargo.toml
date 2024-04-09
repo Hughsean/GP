@@ -1,0 +1,18 @@
+[package]
+version = "0.1.0"
+name = "demo"
+edition = "2021"
+workspace = ".."
+
+[dependencies]
+anyhow = "1.0.81"
+quic = { path = "../quic" }
+
+tokio = { version = "1.37.0", features = ["macros", "rt-multi-thread"] }
+rustls = { version = "0.21.0", default-features = false}
+cpal = "0.15.3"
+opencv = "0.89.0"
+
+serde = { version = "1.0.197", features = ["derive"] }
+serde_json = "1.0.115"
+clap = { version = "4.5.4", features = ["derive"] }
