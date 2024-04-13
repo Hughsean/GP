@@ -6,13 +6,13 @@ use opencv::{
     videoio::{self, VideoCapture},
 };
 
-pub async fn video(v_conn: quic::Connection) {
-    let t1 = tokio::spawn(capture(v_conn.clone()));
+pub async fn video(v_conn: quic::Connection, cam: VideoCapture) {
+    let t1 = tokio::spawn(capture(v_conn.clone(), cam));
     let t2 = tokio::spawn(play(v_conn));
     let _ = tokio::join!(t1, t2);
 }
 
-fn make_cam() -> anyhow::Result<VideoCapture> {
+pub fn make_cam() -> anyhow::Result<VideoCapture> {
     let cam = videoio::VideoCapture::new(0, videoio::CAP_ANY).unwrap();
 
     info!(
@@ -47,8 +47,7 @@ async fn play(v_conn: quic::Connection) -> anyhow::Result<()> {
     }
 }
 
-async fn capture(v_conn: quic::Connection) -> anyhow::Result<()> {
-    let mut cam = make_cam()?;
+async fn capture(v_conn: quic::Connection, mut cam: VideoCapture) -> anyhow::Result<()> {
     loop {
         let mut frame = Mat::default();
         cam.read(&mut frame).unwrap();

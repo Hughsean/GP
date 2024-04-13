@@ -191,10 +191,10 @@ pub async fn handle_call(active: Client, passive: Client) -> anyhow::Result<()> 
     wake_sent.finish().await?;
 
     // 转发数据
-    info!("转发音频数据");
     let t1 = tokio::spawn(transfer(active.a_conn, passive.a_conn));
-    // todo
+    info!("转发音频数据");
     let t2 = tokio::spawn(transfer(active.v_conn, passive.v_conn));
+    info!("转发视频数据");
 
     let _ = tokio::join!(t1, t2);
     Ok(())
