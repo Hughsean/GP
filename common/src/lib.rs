@@ -44,9 +44,9 @@ impl Display for Message {
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub enum Info {
-
     Ok,
     Err,
+    Wait,
     Wake,
     UserList(Vec<String>),
 }
@@ -85,7 +85,7 @@ pub fn make_endpoint(enable: EndpointType) -> anyhow::Result<quic::Endpoint> {
                 .with_single_cert(certs, key)?;
             let mut server_config = quic::ServerConfig::with_crypto(Arc::new(server_crypto));
             let transport_config = Arc::get_mut(&mut server_config.transport).unwrap();
-            transport_config.max_concurrent_uni_streams(0_u8.into());
+            transport_config.max_concurrent_uni_streams(100_u8.into());
             endpoint = quic::Endpoint::server(server_config, listen)?;
         }
         EndpointType::Client(addr) => {

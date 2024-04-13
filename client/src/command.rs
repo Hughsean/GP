@@ -8,7 +8,7 @@ pub struct Cli {
     pub name: String,
     /// 服务器地址
     #[arg(short, long)]
-    pub addr: String,
+    pub addr: Option<String>,
     /// 服务器名称(默认: localhost)
     #[arg(short, long)]
     pub server: Option<String>,

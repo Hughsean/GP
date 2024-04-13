@@ -2,7 +2,7 @@ use std::{fs, net::SocketAddr, sync::Arc};
 
 use quic::Endpoint;
 
-pub fn make_endpoint(config: Config) -> anyhow::Result<Endpoint> {
+fn _make_endpoint(config: Config) -> anyhow::Result<Endpoint> {
     let listen: SocketAddr = config.listen.parse()?;
 
     let (certs, key) = {

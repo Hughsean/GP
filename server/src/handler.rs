@@ -1,7 +1,7 @@
-use std::sync::Arc;
+use std::{sync::Arc, time::Duration};
 
 use anyhow::anyhow;
-use common::Message;
+
 use log::{debug, info, warn};
 use quic::{Endpoint, SendStream};
 
@@ -62,7 +62,7 @@ async fn handle_req(
     msg: common::Message,
     map: ClientMap,
     mut send: SendStream,
-    conn: quic::Connection,
+    ctrl_conn: quic::Connection,
     data_endpoint: Arc<tokio::sync::Mutex<Endpoint>>,
 ) -> anyhow::Result<()> {
     match msg {
@@ -83,22 +83,45 @@ async fn handle_req(
                 send.write_all(&msg.to_vec_u8()).await.unwrap();
                 send.finish().await?;
 
-                // 等待唤醒
-                let (waker, _) = conn.accept_bi().await?;
-                let waker = Some(Arc::new(tokio::sync::Mutex::new(waker)));
                 // 音频连接
                 let a_conn = dataendp_lock.accept().await.unwrap().await?;
                 // 视频连接
                 let v_conn = dataendp_lock.accept().await.unwrap().await?;
+                info!("音视频连接建立");
 
                 info!("name({}) 加入等待接听列表", name);
+
+                let is_waiting = Arc::new(tokio::sync::Mutex::new(true));
+                let is_wating_c = is_waiting.clone();
+                let is_waiting = Some(is_waiting);
+
+                let ctrl_conn_c = ctrl_conn.clone();
+
+                // 与客户端保活
+                tokio::spawn(async move {
+                    let wait = common::Message::Result(common::Info::Wait);
+                    let wake = common::Message::Result(common::Info::Wake);
+                    loop {
+                        let mut send = ctrl_conn_c.open_uni().await?;
+                        if *is_wating_c.lock().await {
+                            send.write_all(&wait.to_vec_u8()).await?;
+                            send.finish().await?;
+                            tokio::time::sleep(Duration::from_millis(500)).await;
+                        } else {
+                            send.write_all(&wake.to_vec_u8()).await?;
+                            send.finish().await?;
+                            break;
+                        }
+                    }
+                    Ok::<(), anyhow::Error>(())
+                });
                 clients_lock.insert(
                     name,
                     Client {
-                        _conn: conn,
+                        ctrl_conn,
                         a_conn,
                         v_conn,
-                        waker,
+                        is_waiting,
                     },
                 );
             }
@@ -130,17 +153,19 @@ async fn handle_req(
             let v_conn = dataendp_lock.accept().await.unwrap().await?;
 
             let c_active = Client {
-                _conn: conn,
+                ctrl_conn,
                 a_conn,
                 v_conn,
-                waker: None,
+                is_waiting: None,
             };
             let c_passive = clients_lock.remove(&name).unwrap();
+            // 停止等待
+            *c_passive.is_waiting.clone().unwrap().lock().await = false;
 
             drop(clients_lock);
             drop(dataendp_lock);
 
-            handle_call::handle_call(c_active, c_passive).await?;
+            handle_call(c_active, c_passive).await?;
         }
         // 请求等待呼叫用户列表
         common::Message::QueryUsers => {
@@ -158,4 +183,64 @@ async fn handle_req(
     Ok(())
 }
 
-mod handle_call;
+pub async fn handle_call(active: Client, passive: Client) -> anyhow::Result<()> {
+    // 唤醒被呼叫者
+    let msg = common::Message::Result(common::Info::Wake);
+    let mut wake_sent = passive.ctrl_conn.open_uni().await?;
+    wake_sent.write_all(&msg.to_vec_u8()).await?;
+    wake_sent.finish().await?;
+
+    // 转发数据
+    info!("转发音频数据");
+    let t1 = tokio::spawn(transfer(active.a_conn, passive.a_conn));
+    // todo
+    let t2 = tokio::spawn(transfer(active.v_conn, passive.v_conn));
+
+    let _ = tokio::join!(t1, t2);
+    Ok(())
+}
+
+async fn transfer(a: quic::Connection, p: quic::Connection) -> anyhow::Result<()> {
+    let a_c = a.clone();
+    let p_c = p.clone();
+
+    // a to p
+    let fut1 = async move {
+        loop {
+            if let (Ok(mut a_r), Ok(mut p_s)) = (a_c.accept_uni().await, p_c.open_uni().await) {
+                if let Ok(data) = a_r.read_to_end(usize::MAX).await {
+                    if p_s.write_all(&data).await.is_err() || p_s.finish().await.is_err() {
+                        break;
+                    }
+                } else {
+                    break;
+                }
+            } else {
+                break;
+            };
+        }
+    };
+
+    // p to a
+    let fut2 = async move {
+        loop {
+            if let (Ok(mut p_r), Ok(mut a_s)) = (p.accept_uni().await, a.open_uni().await) {
+                if let Ok(data) = p_r.read_to_end(usize::MAX).await {
+                    if a_s.write_all(&data).await.is_err() || a_s.finish().await.is_err() {
+                        break;
+                    }
+                } else {
+                    break;
+                }
+            } else {
+                break;
+            }
+        }
+    };
+    let t1 = tokio::spawn(fut1);
+    let t2 = tokio::spawn(fut2);
+
+    let _ = tokio::join!(t1, t2);
+    info!("数据转发停止");
+    Ok(())
+}

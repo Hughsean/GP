@@ -1,11 +1,12 @@
-use std::net::SocketAddr;
-
+use crate::{
+    audio::{audio, make_input_stream, make_output_stream},
+    video::video,
+};
 use anyhow::anyhow;
-
 use cpal::traits::StreamTrait;
+use log::info;
 use quic::Endpoint;
-
-use crate::audio::{make_input_stream, make_output_stream};
+use std::{net::SocketAddr, sync::Arc};
 
 pub async fn call(
     ctrl_endp: Endpoint,
@@ -33,7 +34,7 @@ pub async fn call(
         // 创建数据连接
         let a_conn = data_endp.connect(data_addr, server_name)?.await?;
         let v_conn = data_endp.connect(data_addr, server_name)?.await?;
-        calling(conn).await?;
+        calling(a_conn, v_conn).await?;
     } else {
         return Err(anyhow!("请求错误"));
     }
@@ -41,37 +42,32 @@ pub async fn call(
     Ok(())
 }
 
-async fn calling(conn: quic::Connection) -> anyhow::Result<()> {
+async fn calling(
+    // conn: quic::Connection,
+    a_conn: quic::Connection,
+    v_conn: quic::Connection,
+) -> anyhow::Result<()> {
     // 音频处理
-    let fut1 = async {
-        let (sendin, recvin) = std::sync::mpsc::channel::<Vec<f32>>();
-        let (sendout, recvout) = std::sync::mpsc::channel::<Vec<f32>>();
+    let (input_send, input_recv) = std::sync::mpsc::channel::<Vec<f32>>();
+    let (output_send, output_recv) = std::sync::mpsc::channel::<Vec<f32>>();
+    let input_recv = Arc::new(tokio::sync::Mutex::new(input_recv));
+    let output_send = Arc::new(tokio::sync::Mutex::new(output_send));
 
-        let output = make_output_stream(recvout);
-        let input = make_input_stream(sendin);
-        input.play().unwrap();
-        output.play().unwrap();
+    // 音频
+    let input_stream = make_input_stream(input_send);
+    let output_stream = make_output_stream(output_recv);
+    info!("音频设备配置成功");
+    // 启动设备
+    input_stream.play().unwrap();
+    output_stream.play().unwrap();
+    info!("音频设备启动");
 
-        loop {
-            let (mut send, secr) = conn.accept_bi().await.unwrap();
-            let buff32 = recvin.recv().unwrap();
-
-            let mut bufu8: Vec<u8> = Vec::with_capacity(buff32.len() * 4);
-            bufu8.copy_from_slice(unsafe {
-                core::slice::from_raw_parts(buff32.as_ptr() as *const u8, buff32.len() * 4)
-            });
-
-            // send.write_all(buf);
-        }
-
-        // let futin=async{
-
-        // };
-    };
+    let t1 = tokio::spawn(audio(a_conn, input_recv, output_send));
 
     // 视频处理
-    let fut2 = async {};
-
+    // todo
+    let t2 = tokio::spawn(video(v_conn));
+    let _ = tokio::join!(t1, t2);
     Ok(())
 }
 

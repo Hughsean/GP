@@ -1,7 +1,7 @@
-use std::time::Duration;
+use std::sync::Arc;
 
 use cpal::{
-    traits::{DeviceTrait, HostTrait, StreamTrait},
+    traits::{DeviceTrait, HostTrait},
     StreamConfig,
 };
 
@@ -51,6 +51,54 @@ pub fn make_output_stream(recv: std::sync::mpsc::Receiver<Vec<f32>>) -> cpal::St
         )
         .unwrap();
     stream
+}
+
+pub async fn audio(
+    a_conn: quic::Connection,
+    input_recv: Arc<tokio::sync::Mutex<std::sync::mpsc::Receiver<Vec<f32>>>>,
+    output_send: Arc<tokio::sync::Mutex<std::sync::mpsc::Sender<Vec<f32>>>>,
+) {
+    let input_recv_c = input_recv.clone();
+    let output_send_c = output_send.clone();
+
+    // 发送音频
+    let a_conn_c = a_conn.clone();
+    let f1 = tokio::spawn(async move {
+        loop {
+            let data = input_recv_c.lock().await.recv()?;
+            let vu8 = vf32_to_vu8(data);
+
+            if let Ok(mut send) = a_conn_c.open_uni().await {
+                if send.write_all(&vu8).await.is_err() || send.finish().await.is_err() {
+                    break;
+                }
+            } else {
+                break;
+            }
+        }
+        Ok::<(), anyhow::Error>(())
+    });
+    // 接收音频
+    let f2 = tokio::spawn(async move {
+        loop {
+            if let Ok(mut recv) = a_conn.accept_uni().await {
+                if let Ok(data) = recv.read_to_end(usize::MAX).await {
+                    let vf32 = vu8_to_vf32(data);
+                    output_send_c.lock().await.send(vf32)?;
+                } else {
+                    break;
+                }
+            } else {
+                break;
+            }
+        }
+
+        Ok::<(), anyhow::Error>(())
+    });
+
+    let _ = tokio::join!(f1, f2);
+
+    // fut1
 }
 
 pub fn vf32_to_vu8(vf32: Vec<f32>) -> Vec<u8> {

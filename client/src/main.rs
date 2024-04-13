@@ -1,15 +1,25 @@
 use std::{fs, net::SocketAddr, sync::Arc};
 
+use call::call;
 use clap::Parser;
 use command::Cli;
 
+use log::{error, info};
 use quic::Endpoint;
 
 #[tokio::main]
 async fn main() {
+    std::env::set_var("RUST_LOG", "client=DEBUG");
+    env_logger::init();
+
     let cli = command::Cli::parse();
-    println!("{} {}", cli.addr, cli.name);
-    let ctrl_addr: SocketAddr = cli.addr.parse().unwrap();
+    // println!("{} {}", cli.addr, cli.name);
+    let ctrl_addr: SocketAddr = cli
+        .clone()
+        .addr
+        .unwrap_or("122.51.128.39:12345".into())
+        .parse()
+        .unwrap();
     let data_addr = SocketAddr::new(ctrl_addr.ip(), ctrl_addr.port() + 1);
 
     let ctrl_endp = match config(cli.clone()) {
@@ -46,7 +56,21 @@ async fn main() {
             conn.close(0u8.into(), b"done");
             ctrl_endp.wait_idle().await;
         }
-        command::Commands::Call { name } => println!("call {}", name),
+        command::Commands::Call { name } => match call(
+            ctrl_endp,
+            data_endp,
+            ctrl_addr,
+            data_addr,
+            &cli.server.unwrap_or("localhost".into()),
+            &name,
+        )
+        .await
+        {
+            Ok(_) => {
+                info!("结束通话")
+            }
+            Err(e) => error!("{}", e.to_string()),
+        },
         command::Commands::Query => println!("query"),
     }
 }

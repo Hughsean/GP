@@ -1,6 +1,6 @@
 use config::Config;
 use log::{info, warn};
-use std::{cell::RefCell, collections::HashMap, net::SocketAddr, sync::Arc};
+use std::{collections::HashMap, net::SocketAddr, sync::Arc};
 
 // const FRAME_LEN: usize = 691200;
 // const AUDIO_LEN: usize = 960;
@@ -11,13 +11,13 @@ use std::{cell::RefCell, collections::HashMap, net::SocketAddr, sync::Arc};
 #[derive(Debug, Clone)]
 struct Client {
     /// 备用连接
-    pub _conn: quic::Connection,
+    pub ctrl_conn: quic::Connection,
     /// 音频连接
     pub a_conn: quic::Connection,
     /// 视频连接
     pub v_conn: quic::Connection,
-    /// 唤醒等待被呼叫用户
-    pub waker: Option< Arc<tokio::sync::Mutex<quic::SendStream>>>,
+    ///
+    pub is_waiting: Option<Arc<tokio::sync::Mutex<bool>>>,
 }
 
 type ClientMap = Arc<tokio::sync::Mutex<HashMap<String, Client>>>;
