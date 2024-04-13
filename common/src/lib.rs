@@ -21,6 +21,13 @@ pub enum Message {
     Result(Info),
 }
 
+impl Message {
+    pub fn to_vec_u8(&self) -> Vec<u8> {
+        let json = serde_json::to_vec(&self).unwrap();
+        json
+    }
+}
+
 impl Display for Message {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let str = match self {
@@ -37,8 +44,10 @@ impl Display for Message {
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub enum Info {
+
     Ok,
     Err,
+    Wake,
     UserList(Vec<String>),
 }
 

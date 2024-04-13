@@ -7,7 +7,8 @@ workspace = ".."
 [dependencies]
 anyhow = "1.0.81"
 quic = { path = "../quic" }
-log = "0.4.21"
+
+
 tokio = { version = "1.37.0", features = ["macros", "rt-multi-thread"] }
 rustls = { version = "0.21.0", default-features = false}
 opencv = "0.89.0"
@@ -17,3 +18,6 @@ serde = { version = "1.0.197", features = ["derive"] }
 serde_json = "1.0.115"
 clap = { version = "4.5.4", features = ["derive"] }
 common={path = "../common"}
+
+log = "0.4.21"
+env_logger = "0.11.3"

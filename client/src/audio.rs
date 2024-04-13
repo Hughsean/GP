@@ -53,16 +53,35 @@ pub fn make_output_stream(recv: std::sync::mpsc::Receiver<Vec<f32>>) -> cpal::St
     stream
 }
 
-fn audio_send(send: quic::SendStream) {
-    loop {}
+pub fn vf32_to_vu8(vf32: Vec<f32>) -> Vec<u8> {
+    let vu8len = vf32.len() * 4;
+
+    let mut ret = Vec::with_capacity(vu8len);
+    unsafe { ret.set_len(vu8len) };
+
+    ret.copy_from_slice(unsafe { core::slice::from_raw_parts(vf32.as_ptr() as *const u8, vu8len) });
+
+    ret
 }
 
-fn audio_recv(recv: quic::RecvStream) {}
+pub fn vu8_to_vf32(vu8: Vec<u8>) -> Vec<f32> {
+    let vf32len = vu8.len() / 4;
+
+    let mut ret = Vec::with_capacity(vf32len);
+    unsafe { ret.set_len(vf32len) };
+
+    ret.copy_from_slice(unsafe {
+        core::slice::from_raw_parts(vu8.as_ptr() as *const f32, vf32len)
+    });
+
+    ret
+}
 
 #[test]
-fn m() {
-    let (sendin, recvin) = std::sync::mpsc::channel::<Vec<f32>>();
-    let s = make_input_stream(sendin);
-    s.play().unwrap();
-    std::thread::sleep(Duration::from_secs(8));
+fn v2v() {
+    let f = vec![12.1, 1.1, 3.4];
+    let u = vf32_to_vu8(f);
+    let f = vu8_to_vf32(u);
+
+    println!("{:?}", f);
 }

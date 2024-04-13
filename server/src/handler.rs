@@ -68,43 +68,48 @@ async fn handle_req(
     match msg {
         // 挂线, 等待接听
         common::Message::Wait(name) => {
-            let mut map_lock = map.lock().await;
-            let mut endp_lock = data_endpoint.lock().await;
+            let mut clients_lock = map.lock().await;
+            let dataendp_lock = data_endpoint.lock().await;
 
-            if map_lock.contains_key(&name) {
+            if clients_lock.contains_key(&name) {
                 // 用户名重复
                 debug!("用户名({})重复", name);
 
-                let msg = serde_json::to_string(&common::Message::Result(common::Info::Err))?;
-                send.write_all(msg.as_bytes()).await.unwrap();
+                let msg = common::Message::Result(common::Info::Err);
+                send.write_all(&msg.to_vec_u8()).await.unwrap();
                 send.finish().await?;
             } else {
-                info!("{} 加入等待接听列表", name);
-
-                let msg = serde_json::to_string(&common::Message::Result(common::Info::Ok))?;
-                send.write_all(msg.as_bytes()).await.unwrap();
+                let msg = common::Message::Result(common::Info::Ok);
+                send.write_all(&msg.to_vec_u8()).await.unwrap();
                 send.finish().await?;
 
-                let a_conn = endp_lock.accept().await.unwrap().await?;
-                let v_conn = endp_lock.accept().await.unwrap().await?;
+                // 等待唤醒
+                let (waker, _) = conn.accept_bi().await?;
+                let waker = Some(Arc::new(tokio::sync::Mutex::new(waker)));
+                // 音频连接
+                let a_conn = dataendp_lock.accept().await.unwrap().await?;
+                // 视频连接
+                let v_conn = dataendp_lock.accept().await.unwrap().await?;
 
-                map_lock.insert(
+                info!("name({}) 加入等待接听列表", name);
+                clients_lock.insert(
                     name,
                     Client {
                         _conn: conn,
                         a_conn,
                         v_conn,
+                        waker,
                     },
                 );
             }
         }
         common::Message::Call(name) => {
-            let mut lock = map.lock().await;
-            let mut endp_lock = data_endpoint.lock().await;
+            let mut clients_lock = map.lock().await;
+            let dataendp_lock = data_endpoint.lock().await;
 
             let msg;
 
-            let contains = lock.contains_key(&name);
+            let contains = clients_lock.contains_key(&name);
             //查看是否存在被呼叫用户
             if !contains {
                 msg = common::Message::Result(common::Info::Err);
@@ -112,38 +117,41 @@ async fn handle_req(
                 msg = common::Message::Result(common::Info::Ok);
             }
 
-            let msg = serde_json::to_string(&msg)?;
-            send.write_all(msg.as_bytes()).await?;
+            send.write_all(&msg.to_vec_u8()).await?;
             send.finish().await?;
 
             if !contains {
                 warn!("呼叫的用户({})不存在", name);
                 return Ok(());
             }
-            let a_conn = endp_lock.accept().await.unwrap().await?;
-            let v_conn = endp_lock.accept().await.unwrap().await?;
+            // 音频连接
+            let a_conn = dataendp_lock.accept().await.unwrap().await?;
+            // 视频连接
+            let v_conn = dataendp_lock.accept().await.unwrap().await?;
 
-            let ca = Client {
+            let c_active = Client {
                 _conn: conn,
                 a_conn,
                 v_conn,
+                waker: None,
             };
-            let cb = lock.remove(&name).unwrap();
+            let c_passive = clients_lock.remove(&name).unwrap();
 
-            drop(lock);
+            drop(clients_lock);
+            drop(dataendp_lock);
 
-            handle_call::handle_call(ca, cb).await?;
+            handle_call::handle_call(c_active, c_passive).await?;
         }
         // 请求等待呼叫用户列表
         common::Message::QueryUsers => {
-            let lock = map.lock().await;
+            let clients_lock = map.lock().await;
             let mut v = vec![];
-            for e in lock.keys() {
+            for e in clients_lock.keys() {
                 v.push(e.clone())
             }
-            let buf =
-                serde_json::to_string(&common::Message::Result(common::Info::UserList(v))).unwrap();
-            send.write_all(buf.as_bytes()).await.unwrap();
+
+            let msg = common::Message::Result(common::Info::UserList(v));
+            send.write_all(&msg.to_vec_u8()).await.unwrap();
         }
         _ => return Err(anyhow!("时序错误")),
     }

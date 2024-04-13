@@ -21,18 +21,18 @@ pub async fn call(
     let (mut send, mut recv) = conn.open_bi().await?;
 
     let msg = common::Message::Call(name.into());
-    let msg = serde_json::to_string(&msg).unwrap();
 
     // 第一个请求
-    send.write_all(msg.as_bytes()).await?;
+    send.write_all(&msg.to_vec_u8()).await?;
     send.finish().await?;
 
     let result = recv.read_to_end(usize::MAX).await?;
-    let result: common::Message = serde_json::from_slice(&result).unwrap();
+    let result: common::Message = serde_json::from_slice(&result)?;
 
     if let common::Message::Result(common::Info::Ok) = result {
+        // 创建数据连接
         let a_conn = data_endp.connect(data_addr, server_name)?.await?;
-        let v_conn=data_endp.connect(data_addr, server_name)?.await?;
+        let v_conn = data_endp.connect(data_addr, server_name)?.await?;
         calling(conn).await?;
     } else {
         return Err(anyhow!("请求错误"));
@@ -51,6 +51,7 @@ async fn calling(conn: quic::Connection) -> anyhow::Result<()> {
         let input = make_input_stream(sendin);
         input.play().unwrap();
         output.play().unwrap();
+
         loop {
             let (mut send, secr) = conn.accept_bi().await.unwrap();
             let buff32 = recvin.recv().unwrap();
