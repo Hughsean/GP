@@ -2,18 +2,17 @@ use std::{fs, net::SocketAddr, sync::Arc};
 
 use clap::Parser;
 use command::Cli;
-use quic::Endpoint;
 
-const FRAME_MSG_BYTE_SIZE: usize = 1382411;
-const AUDIO_MSG_BYTE_SIZE: usize = 3851;
+use quic::Endpoint;
 
 #[tokio::main]
 async fn main() {
     let cli = command::Cli::parse();
     println!("{} {}", cli.addr, cli.name);
-    let remote_addr: SocketAddr = cli.addr.parse().unwrap();
+    let ctrl_addr: SocketAddr = cli.addr.parse().unwrap();
+    let data_addr = SocketAddr::new(ctrl_addr.ip(), ctrl_addr.port() + 1);
 
-    let endpoint = match config(cli.clone()) {
+    let ctrl_endp = match config(cli.clone()) {
         Ok(ept) => ept,
         Err(e) => {
             println!("err: {e} [{} {}]", file!(), line!());
@@ -21,19 +20,31 @@ async fn main() {
         }
     };
 
+    let data_endp =
+        common::make_endpoint(common::EndpointType::Client("0.0.0.0:0".parse().unwrap())).unwrap();
+
     match cli.command {
         command::Commands::Wait => {
-            let conn = match wait::wait(endpoint.clone(), remote_addr, &cli.server, &cli.name).await
+            let conn = match wait::wait(
+                ctrl_endp.clone(),
+                data_endp.clone(),
+                ctrl_addr,
+                data_addr,
+                &cli.server.unwrap_or("localhost".into()),
+                &cli.name,
+            )
+            .await
             {
                 Ok(ok) => ok,
                 Err(err) => {
-                    println!("err: {}", err.to_string());
+                    println!("错误: {}", err.to_string());
                     return;
                 }
             };
             //todo
+
             conn.close(0u8.into(), b"done");
-            endpoint.wait_idle().await;
+            ctrl_endp.wait_idle().await;
         }
         command::Commands::Call { name } => println!("call {}", name),
         command::Commands::Query => println!("query"),
@@ -42,7 +53,9 @@ async fn main() {
 
 fn config(cli: Cli) -> anyhow::Result<Endpoint> {
     let mut roots = rustls::RootCertStore::empty();
-    roots.add(&rustls::Certificate(fs::read(&cli.cert)?))?;
+    roots.add(&rustls::Certificate(fs::read(
+        &cli.cert.unwrap_or("cert/cert.der".into()),
+    )?))?;
 
     let client_crypto = rustls::ClientConfig::builder()
         .with_safe_defaults()

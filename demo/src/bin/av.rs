@@ -18,10 +18,11 @@ fn record(sender: Sender<Vec<f32>>) {
 
     // 获取默认输入格式
     let config = device.default_input_config().unwrap();
-    println!("Using default input format: {:?}", config);
 
+    println!("Using default input format: {:?}", config);
     // 构建输入流配置
     let config: StreamConfig = config.into();
+    println!("{} {}", config.channels, config.sample_rate.0);
 
     // 构建并运行输入流
     let stream = device
@@ -30,7 +31,7 @@ fn record(sender: Sender<Vec<f32>>) {
             move |data: &[f32], _| {
                 // 这里的 `data` 包含了捕获的音频数据
                 // 你可以在这里处理数据，比如写入文件等
-                println!("send: {}", data.len());
+                // println!("send: {}", data.len());
                 sender.send(data.into()).unwrap();
             },
             move |err| {
@@ -39,6 +40,7 @@ fn record(sender: Sender<Vec<f32>>) {
             None,
         )
         .unwrap();
+    
 
     println!("Successfully built input stream. Starting...");
     // 开始捕获音频数据
@@ -61,7 +63,7 @@ fn main() {
     let device = host.default_output_device().unwrap();
     let config: StreamConfig = device.default_output_config().unwrap().into();
     // println!("buffer {:?}", config.buffer_size.clone());
-
+    let mut n = 0;
     let stream = device
         .build_output_stream(
             &config,
@@ -69,8 +71,11 @@ fn main() {
                 //这里怎么写
                 match r.recv() {
                     Ok(v) => {
-                        // println!("revc {};   data:{}", v.len(), data.len());
-                        data[0..v.len()].copy_from_slice(&v);
+                        if n < 2 {
+                            println!("revc {};   data:{}", v.len(), data.len());
+                            data[0..v.len()].copy_from_slice(&v);
+                        }
+                        n += 1;
                     }
                     Err(_) => {
                         // bc.wait();
@@ -81,6 +86,7 @@ fn main() {
             None,
         )
         .unwrap();
+
     stream.play().unwrap();
     t.join().unwrap();
     stream.pause().unwrap();

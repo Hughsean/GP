@@ -1,19 +1,28 @@
+use std::sync::Arc;
+
 use anyhow::anyhow;
-use quic::{RecvStream, SendStream};
+use common::Message;
+use log::{debug, info, warn};
+use quic::{Endpoint, SendStream};
 
 use crate::{Client, ClientMap};
 
-pub async fn handle_connection(conn: quic::Connecting, map: ClientMap) -> anyhow::Result<()> {
-    let connection = conn.await?;
+pub async fn handle_connection(
+    conn: quic::Connecting,
+    map: ClientMap,
+    data_endpoint: Arc<tokio::sync::Mutex<Endpoint>>,
+) -> anyhow::Result<()> {
+    // 首先建立连接
+    let conn = conn.await?;
+    let client_addr = conn.remote_address();
+    info!("连接建立 remote_addr({})", client_addr);
     async {
-        println!("连接建立");
         // 只使用一个双向流
-        // loop {
-        //接收流
-        let stream = connection.accept_bi().await;
+        // 接收流
+        let stream = conn.accept_bi().await;
         let stream = match stream {
             Err(quic::ConnectionError::ApplicationClosed { .. }) => {
-                println!("连接关闭");
+                warn!("连接关闭 remote_addr({})", client_addr);
                 return Ok(());
             }
             Err(e) => {
@@ -23,24 +32,24 @@ pub async fn handle_connection(conn: quic::Connecting, map: ClientMap) -> anyhow
         };
 
         let (send, mut recv) = stream;
-        // 读取请求
 
+        // 读取第一个请求
         match recv.read_to_end(usize::MAX).await {
             Ok(data) => match serde_json::from_slice::<common::Message>(&data) {
                 Ok(msg) => {
                     //处理请求
-                    println!("into _req");
+                    info!("请求: {}", msg);
                     if let Err(e) =
-                        handle_req(msg, map.clone(), send, recv, connection.clone()).await
+                        handle_req(msg, map.clone(), send, conn.clone(), data_endpoint.clone())
+                            .await
                     {
-                        println!("{}({}): {}", file!(), line!(), e.to_string())
+                        warn!("{}", e.to_string())
                     }
                 }
-                Err(e) => println!("{}({}): {}", file!(), line!(), e.to_string()),
+                Err(e) => return Err(e.into()),
             },
-            Err(e) => println!("{}({}): {}", file!(), line!(), e.to_string()),
+            Err(e) => return Err(e.into()),
         };
-        // }
         Ok(())
     }
     .await?;
@@ -53,31 +62,46 @@ async fn handle_req(
     msg: common::Message,
     map: ClientMap,
     mut send: SendStream,
-    mut _recv: RecvStream,
     conn: quic::Connection,
+    data_endpoint: Arc<tokio::sync::Mutex<Endpoint>>,
 ) -> anyhow::Result<()> {
     match msg {
         // 挂线, 等待接听
-        common::Message::Wait(s) => {
-            let mut lock = map.lock().await;
+        common::Message::Wait(name) => {
+            let mut map_lock = map.lock().await;
+            let mut endp_lock = data_endpoint.lock().await;
 
-            if lock.contains_key(&s) {
+            if map_lock.contains_key(&name) {
                 // 用户名重复
+                debug!("用户名({})重复", name);
+
                 let msg = serde_json::to_string(&common::Message::Result(common::Info::Err))?;
                 send.write_all(msg.as_bytes()).await.unwrap();
+                send.finish().await?;
             } else {
-                // OK
-                let msg = serde_json::to_string(&common::Message::Result(common::Info::Ok))?;
+                info!("{} 加入等待接听列表", name);
 
+                let msg = serde_json::to_string(&common::Message::Result(common::Info::Ok))?;
                 send.write_all(msg.as_bytes()).await.unwrap();
-                println!("wait 回传");
-                println!("{} 加入等待接听列表", &s);
-                lock.insert(s, Client { conn });
+                send.finish().await?;
+
+                let a_conn = endp_lock.accept().await.unwrap().await?;
+                let v_conn = endp_lock.accept().await.unwrap().await?;
+
+                map_lock.insert(
+                    name,
+                    Client {
+                        _conn: conn,
+                        a_conn,
+                        v_conn,
+                    },
+                );
             }
-            send.finish().await.unwrap();
         }
         common::Message::Call(name) => {
             let mut lock = map.lock().await;
+            let mut endp_lock = data_endpoint.lock().await;
+
             let msg;
 
             let contains = lock.contains_key(&name);
@@ -87,52 +111,28 @@ async fn handle_req(
             } else {
                 msg = common::Message::Result(common::Info::Ok);
             }
-            let msg = serde_json::to_string(&msg).unwrap();
-            send.write_all(msg.as_bytes()).await.unwrap();
-            send.finish().await.unwrap();
+
+            let msg = serde_json::to_string(&msg)?;
+            send.write_all(msg.as_bytes()).await?;
+            send.finish().await?;
 
             if !contains {
+                warn!("呼叫的用户({})不存在", name);
                 return Ok(());
             }
+            let a_conn = endp_lock.accept().await.unwrap().await?;
+            let v_conn = endp_lock.accept().await.unwrap().await?;
 
-            let ca = Client { conn };
+            let ca = Client {
+                _conn: conn,
+                a_conn,
+                v_conn,
+            };
             let cb = lock.remove(&name).unwrap();
+
             drop(lock);
 
             handle_call::handle_call(ca, cb).await?;
-            // 初始化用户呼叫的流
-            // let mut user1send = v.send;
-            // let mut user1revc = v.recv;
-
-            // let mut user2send = send;
-            // let mut user2revc = recv;
-
-            // let fut1 = async move {
-            //     loop {
-            //         match user1revc.read_to_end(usize::MAX).await {
-            //             Ok(data) => match handle_data(data, &mut user2send).await {
-            //                 Ok(_) => (),
-            //                 Err(_) => break,
-            //             },
-            //             Err(_) => break,
-            //         }
-            //     }
-            // };
-            // let fut2 = async move {
-            //     loop {
-            //         match user2revc.read_to_end(usize::MAX).await {
-            //             Ok(data) => match handle_data(data, &mut user1send).await {
-            //                 Ok(_) => (),
-            //                 Err(_) => break,
-            //             },
-            //             Err(_) => break,
-            //         }
-            //     }
-            // };
-
-            // let t1 = tokio::spawn(fut1);
-            // let t2 = tokio::spawn(fut2);
-            // let _ = tokio::join!(t1, t2);
         }
         // 请求等待呼叫用户列表
         common::Message::QueryUsers => {

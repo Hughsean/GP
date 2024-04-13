@@ -1,22 +1,29 @@
+use config::Config;
+use log::{info, warn};
 use std::{collections::HashMap, sync::Arc};
 
-use config::{make_endpoint, Config};
+// const FRAME_LEN: usize = 691200;
+// const AUDIO_LEN: usize = 960;
 
-const FRAME_LEN: usize = 691200;
-const AUDIO_LEN: usize = 960;
+// const FRAME_MSG_BYTE_SIZE: usize = 1382411;
+// const AUDIO_MSG_BYTE_SIZE: usize = 3851;
 
-
-const FRAME_MSG_BYTE_SIZE: usize = 1382411;
-const AUDIO_MSG_BYTE_SIZE: usize = 3851;
-
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct Client {
-    pub conn: quic::Connection,
+    /// 备用连接
+    pub _conn: quic::Connection,
+    /// 音频连接
+    pub a_conn: quic::Connection,
+    /// 视频连接
+    pub v_conn: quic::Connection, 
 }
 
 type ClientMap = Arc<tokio::sync::Mutex<HashMap<String, Client>>>;
 
 fn main() {
+    std::env::set_var("RUST_LOG", "DEBUG");
+    env_logger::init();
+
     let config = Config::new(None);
     if let Err(e) = run(config) {
         println!("Err: {}", e.to_string())
@@ -24,17 +31,21 @@ fn main() {
 }
 
 #[tokio::main]
-async fn run(config: Config) -> anyhow::Result<()> {
+async fn run(_config: Config) -> anyhow::Result<()> {
     let map = Arc::new(tokio::sync::Mutex::new(HashMap::new()));
+    let endpoint = common::make_endpoint(common::EndpointType::Server("0.0.0.0:12345".parse()?))?;
 
-    let endpoint = make_endpoint(config)?;
+    let data_endpoint = Arc::new(tokio::sync::Mutex::new(common::make_endpoint(
+        common::EndpointType::Server("0.0.0.0:12346".parse()?),
+    )?));
+
+    info!("监听 {}", endpoint.local_addr()?);
     //
     while let Some(conn) = endpoint.accept().await {
-        println!("连接创建");
-        let fut = handler::handle_connection(conn, map.clone());
+        let fut = handler::handle_connection(conn, map.clone(), data_endpoint.clone());
         tokio::spawn(async move {
             if let Err(e) = fut.await {
-                println!("连接失败: {reason}", reason = e.to_string())
+                warn!("连接失败: {reason}", reason = e.to_string())
             }
         });
     }

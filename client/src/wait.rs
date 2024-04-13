@@ -2,46 +2,50 @@ use std::net::SocketAddr;
 
 use anyhow::{anyhow, Result};
 use common::Message;
-use quic::{Connection, Endpoint, RecvStream, SendStream};
+
+use quic::{Connection, Endpoint};
 
 //
 pub async fn wait(
-    endpoint: Endpoint,
-    remote_addr: SocketAddr,
+    ctrl_endp: Endpoint,
+    data_endp: Endpoint,
+    ctrl_addr: SocketAddr,
+    data_addr: SocketAddr,
     server_name: &str,
     name: &str,
 ) -> Result<Connection> {
-    let conn = endpoint.connect(remote_addr, server_name)?;
+    let conn = ctrl_endp.connect(ctrl_addr, server_name)?;
     let conn = conn.await?;
     let (mut send, mut recv) = conn.open_bi().await?;
 
     let msg = Message::Wait(name.into());
     let msg = serde_json::to_string(&msg).unwrap();
 
+    // 发送第一个请求
     send.write_all(msg.as_bytes()).await?;
     send.finish().await?;
 
     let result = recv.read_to_end(usize::MAX).await?;
+    let result: Message = serde_json::from_slice(&result)?;
 
-    let data: Message = serde_json::from_slice(&result)?;
-
-    if let Message::Result(info) = data {
-        if !info.is_ok() {
+    if let Message::Result(info) = result {
+        if info.is_ok() {
+            let a_conn = data_endp.connect(data_addr, server_name)?.await?;
+            let v_conn=data_endp.connect(data_addr, server_name)?.await?;
+            waitcall(conn.clone(),a_conn,v_conn).await?;
+        } else {
             return Err(anyhow!("请求错误"));
         }
-    } else {
-        println!("传输时序错误")
     }
 
     Ok(conn)
 }
 
-async fn waitcall(conn: Connection) -> anyhow::Result<()> {
+async fn waitcall(_conn: Connection, a_conn: Connection, v_conn: Connection) -> anyhow::Result<()> {
     // 音频
-    let (mut audio_send, mut audio_recv) = conn.accept_bi().await?;
+    let (mut audio_send, mut audio_recv) = _conn.accept_bi().await?;
     // 视频
-    let (mut video_send, video_recv) = conn.open_bi().await?;
+    let (mut video_send, video_recv) = _conn.open_bi().await?;
 
-    
     Ok(())
 }

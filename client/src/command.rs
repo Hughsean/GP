@@ -9,12 +9,12 @@ pub struct Cli {
     /// 服务器地址
     #[arg(short, long)]
     pub addr: String,
-    /// 服务器名称
+    /// 服务器名称(默认: localhost)
     #[arg(short, long)]
-    pub server: String,
-    /// 证书路径
+    pub server: Option<String>,
+    /// 证书路径(m默认: cert/cert.der)
     #[arg(short, long)]
-    pub cert: String,
+    pub cert: Option<String>,
 
     #[command(subcommand)]
     pub command: Commands,

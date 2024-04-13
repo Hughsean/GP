@@ -32,11 +32,11 @@ async fn run() -> anyhow::Result<()> {
     let endpoint = quic::Endpoint::server(server_config, listen)?;
 
     while let Some(conn) = endpoint.accept().await {
-        println!("connection incoming");
+        println!("连接到来");
         let fut = handle_connection(conn);
         tokio::spawn(async move {
             if let Err(e) = fut.await {
-                println!("connection failed: {reason}", reason = e.to_string())
+                println!("连接错误: {reason}", reason = e.to_string())
             }
         });
     }
@@ -44,36 +44,10 @@ async fn run() -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn handle_request(
-    (mut send, mut recv): (quic::SendStream, quic::RecvStream),
-) -> anyhow::Result<()> {
-    let mut v: Vec<u8> = vec![0; 1843211];
-    recv.read_exact(&mut v).await;
-    println!("read");
-    // let req = recv
-    //     .read_to_end(usize::MAX)
-    //     .await
-    //     .map_err(|e| anyhow::anyhow!("failed reading request: {}", e))?;
-
-    // let r: demo::R = serde_json::from_slice(&req)?;
-    // println!("{r:?}");
-    // //
-    // let response = "from server";
-
-    // // Write the response
-    // send.write_all(response.as_bytes())
-    //     .await
-    //     .map_err(|e| anyhow::anyhow!("failed to send response: {}", e))?;
-
-    // // Gracefully terminate the stream
-    // send.finish()
-    //     .await
-    //     .map_err(|e| anyhow::anyhow!("failed to shutdown stream: {}", e))?;
-    Ok(())
-}
-
 async fn handle_connection(conn: quic::Connecting) -> anyhow::Result<()> {
     let connection = conn.await?;
+
+    let mut buf = vec![0u8; 1843211];
     async {
         loop {
             let stream = connection.accept_bi().await;
@@ -87,14 +61,28 @@ async fn handle_connection(conn: quic::Connecting) -> anyhow::Result<()> {
                 }
                 Ok(s) => s,
             };
-            let fut = handle_request(stream);
-            tokio::spawn(async move {
-                if let Err(e) = fut.await {
-                    println!("failed: {reason}", reason = e.to_string());
-                } else {
-                    println!("流处理结束")
+
+            let fut = async {
+                let (mut _send, mut recv) = stream;
+                // recv.read_to_end(usize::MAX).await?;
+                // recv.read_exact(&mut buf).await?;
+                
+                let buf = recv.read_to_end(usize::MAX).await?;
+                let t: common::Message = serde_json::from_slice(&buf).unwrap();
+                if let common::Message::Video(data) = t {
+                    println!("{}", data);
                 }
-            });
+                Ok::<(), anyhow::Error>(())
+            };
+
+            // let fut = handle_request(stream);
+            // tokio::spawn(async move {
+            if let Err(e) = fut.await {
+                println!("failed: {reason}", reason = e.to_string());
+            } else {
+                println!("流处理结束")
+            }
+            // });
         }
     }
     .await?;
