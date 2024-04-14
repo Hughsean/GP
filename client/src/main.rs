@@ -13,16 +13,19 @@ async fn main() {
     env_logger::init();
 
     let cli = command::Cli::parse();
-    // println!("{} {}", cli.addr, cli.name);
     let ctrl_addr: SocketAddr = cli
         .clone()
         .addr
-        .unwrap_or("122.51.128.39:12345".into())
+        .unwrap_or("172.19.43.60:12345".into())
         .parse()
         .unwrap();
+
     let data_addr = SocketAddr::new(ctrl_addr.ip(), ctrl_addr.port() + 1);
 
-    let ctrl_endp = match config(cli.clone()) {
+    info!("ctrl_addr {}", ctrl_addr);
+    info!("data_addr {}", data_addr);
+
+    let endp = match config(cli.clone()) {
         Ok(ept) => ept,
         Err(e) => {
             println!("err: {e} [{} {}]", file!(), line!());
@@ -30,14 +33,30 @@ async fn main() {
         }
     };
 
-    let data_endp =
+    let aendp =
         common::make_endpoint(common::EndpointType::Client("0.0.0.0:0".parse().unwrap())).unwrap();
+    let vendp =
+        common::make_endpoint(common::EndpointType::Client("0.0.0.0:0".parse().unwrap())).unwrap();
+    // // .unwrap();
+    // // let ar_endp = common::make_endpoint(common::EndpointType::Client(
+    // //     "0.0.0.0:9091".parse().unwrap(),
+    // // ))
+    // .unwrap();
+    // let v_endp = common::make_endpoint(common::EndpointType::Client(
+    //     "0.0.0.0:9092".parse().unwrap(),
+    // ))
+    // .unwrap();
+    // let vr_endp = common::make_endpoint(common::EndpointType::Client(
+    //     "0.0.0.0:9093".parse().unwrap(),
+    // ))
+    // .unwrap();
 
     match cli.command {
         command::Commands::Wait => {
             let conn = match wait::wait(
-                ctrl_endp.clone(),
-                data_endp.clone(),
+                endp.clone(),
+                aendp,
+                vendp,
                 ctrl_addr,
                 data_addr,
                 &cli.server.unwrap_or("localhost".into()),
@@ -47,18 +66,19 @@ async fn main() {
             {
                 Ok(ok) => ok,
                 Err(err) => {
-                    println!("错误: {}", err.to_string());
+                    error!("错误: {} line{}", err.to_string(), line!());
                     return;
                 }
             };
             //todo
 
             conn.close(0u8.into(), b"done");
-            ctrl_endp.wait_idle().await;
+            endp.wait_idle().await;
         }
         command::Commands::Call { name } => match call(
-            ctrl_endp,
-            data_endp,
+            endp,
+            aendp,
+            vendp,
             ctrl_addr,
             data_addr,
             &cli.server.unwrap_or("localhost".into()),

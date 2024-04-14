@@ -1,5 +1,5 @@
 [workspace]
-members = ["quic", "quic-proto", "quic-udp", "demo", "server", "client", "common"]
+members = ["demo", "server", "client", "common"]
 # default-members = ["quinn", "quinn-proto", "quinn-udp", "bench", "perf"]
 resolver = "2"
 # [profile.bench]

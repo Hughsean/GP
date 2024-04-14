@@ -6,7 +6,8 @@ workspace = ".."
 
 [dependencies]
 anyhow = "1.0.81"
-quic = { path = "../quic" }
+# quic = { path = "../quic" }
+quic = { package = "quinn" ,version = "0.10.2"}
 
 
 tokio = { version = "1.37.0", features = ["macros", "rt-multi-thread"] }

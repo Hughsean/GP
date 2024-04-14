@@ -1,64 +1,51 @@
 use crate::{
-    audio::{audio, make_input_stream, make_output_stream},
+    audio::{audio, make_input_stream, make_output_stream, vf32_to_vu8, vu8_to_vf32},
     video::{make_cam, video},
 };
 use anyhow::anyhow;
 use cpal::{traits::StreamTrait, Stream};
-use log::info;
+use log::{debug, error, info};
 use opencv::videoio::VideoCapture;
-use quic::Endpoint;
+use quic::{Connection, Endpoint};
 use std::{net::SocketAddr, sync::Arc};
 
 pub async fn call(
-    ctrl_endp: Endpoint,
-    data_endp: Endpoint,
+    endp: Endpoint,
+    aendp: Endpoint,
+    vendp: Endpoint,
     ctrl_addr: SocketAddr,
     data_addr: SocketAddr,
     server_name: &str,
     name: &str,
 ) -> anyhow::Result<()> {
     // 音频处理
-    let (input_send, input_recv) = std::sync::mpsc::channel::<Vec<f32>>();
-    let (output_send, output_recv) = std::sync::mpsc::channel::<Vec<f32>>();
-    let input_recv = Arc::new(tokio::sync::Mutex::new(input_recv));
-    let output_send = Arc::new(tokio::sync::Mutex::new(output_send));
 
-    // 音频
-    let input_stream = make_input_stream(input_send);
-    let output_stream = make_output_stream(output_recv);
-    info!("音频设备配置成功");
-    let cam = make_cam()?;
-    info!("摄像头启动");
+    //todo
+    // let _window = opencv::highgui::named_window("Video", opencv::highgui::WINDOW_AUTOSIZE)?;
 
-    let conn = ctrl_endp.connect(ctrl_addr, server_name)?;
-    let conn = conn.await?;
+    let ctrl_conn = endp.connect(ctrl_addr, server_name)?;
+    let ctrl_conn = ctrl_conn.await?;
+    debug!("建立 ctrl_conn");
 
-    let (mut send, mut recv) = conn.open_bi().await?;
-
+    let (mut send, mut recv) = ctrl_conn.open_bi().await?;
     let msg = common::Message::Call(name.into());
 
     // 第一个请求
     send.write_all(&msg.to_vec_u8()).await?;
     send.finish().await?;
+    debug!("发送请求");
 
     let result = recv.read_to_end(usize::MAX).await?;
     let result: common::Message = serde_json::from_slice(&result)?;
+    debug!("读取请求结果");
 
     if let common::Message::Result(common::Info::Ok) = result {
         // 创建数据连接
-        let a_conn = data_endp.connect(data_addr, server_name)?.await?;
-        let v_conn = data_endp.connect(data_addr, server_name)?.await?;
+        let a_conn = aendp.connect(data_addr, server_name)?.await?;
+        let v_conn = vendp.connect(data_addr, server_name)?.await?;
 
-        calling(
-            a_conn,
-            v_conn,
-            input_recv,
-            output_send,
-            cam,
-            input_stream,
-            output_stream,
-        )
-        .await?;
+        info!("已建立音视频连接");
+        fun(a_conn).await?;
     } else {
         return Err(anyhow!("请求错误"));
     }
@@ -66,31 +53,35 @@ pub async fn call(
     Ok(())
 }
 
-async fn calling(
-    // conn: quic::Connection,
-    a_conn: quic::Connection,
-    v_conn: quic::Connection,
-    input_recv: Arc<tokio::sync::Mutex<std::sync::mpsc::Receiver<Vec<f32>>>>,
-    output_send: Arc<tokio::sync::Mutex<std::sync::mpsc::Sender<Vec<f32>>>>,
-    cam: VideoCapture,
-    input_stream: Stream,
-    output_stream: Stream,
-) -> anyhow::Result<()> {
+async fn fun(a_conn: Connection) -> anyhow::Result<()> {
     // 启动设备
-    input_stream.play().unwrap();
-    output_stream.play().unwrap();
     info!("音频设备启动");
 
-    let t1 = tokio::spawn(audio(a_conn, input_recv, output_send));
-    // 视频处理
-    let t2 = tokio::spawn(video(v_conn, cam));
-    // info!()
-    let _ = tokio::join!(t1, t2);
+    let (input_send, input_recv) = std::sync::mpsc::channel::<Vec<f32>>();
+    let (output_send, output_recv) = std::sync::mpsc::channel::<Vec<f32>>();
+
+    let input_recv_a = Arc::new(tokio::sync::Mutex::new(input_recv));
+    let output_send_a = Arc::new(tokio::sync::Mutex::new(output_send.clone()));
+
+    let input_stream = make_input_stream(input_send.clone());
+    let output_stream = make_output_stream(output_recv);
+    info!("音频设备配置成功");
+    // 音频
+    output_stream.play().unwrap();
+    input_stream.play().unwrap();
+
+    let t1 = tokio::spawn(audio(
+        a_conn.clone(),
+        input_recv_a.clone(),
+        output_send_a.clone(),
+    ));
+    // 视频
+    let _ = tokio::join!(t1);
+    info!("呼叫结束");
     Ok(())
 }
 
 #[test]
-
 fn f() {
     let buff32 = vec![12.1f32; 3];
     let mut bufu8: Vec<u8> = Vec::with_capacity(buff32.len() * 4);

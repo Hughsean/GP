@@ -1,5 +1,5 @@
-use anyhow::{anyhow, Ok};
-use log::info;
+use anyhow::anyhow;
+use log::{debug, error, info};
 use opencv::{
     highgui,
     prelude::*,
@@ -8,8 +8,9 @@ use opencv::{
 
 pub async fn video(v_conn: quic::Connection, cam: VideoCapture) {
     let t1 = tokio::spawn(capture(v_conn.clone(), cam));
-    let t2 = tokio::spawn(play(v_conn));
+    let t2 = tokio::spawn(play(v_conn.clone()));
     let _ = tokio::join!(t1, t2);
+    info!("视频已断线")
 }
 
 pub fn make_cam() -> anyhow::Result<VideoCapture> {
@@ -33,33 +34,47 @@ pub fn make_cam() -> anyhow::Result<VideoCapture> {
 }
 
 async fn play(v_conn: quic::Connection) -> anyhow::Result<()> {
-    let _window = highgui::named_window("Video", highgui::WINDOW_AUTOSIZE)?;
     loop {
-        let mut recv = v_conn.accept_uni().await?;
-        let buf = recv.read_to_end(usize::MAX).await?;
+        match v_conn.accept_uni().await {
+            Ok(mut recv) => {
+                let buf = recv.read_to_end(usize::MAX).await?;
+                let buf = opencv::types::VectorOfu8::from(buf);
 
-        let buf = opencv::types::VectorOfu8::from(buf);
-        let frame = opencv::imgcodecs::imdecode(&buf, opencv::imgcodecs::IMREAD_COLOR)?;
-        if frame.size().unwrap().width > 0 {
-            highgui::imshow("Video", &frame).unwrap();
+                let frame = opencv::imgcodecs::imdecode(&buf, opencv::imgcodecs::IMREAD_COLOR)?;
+
+                if frame.size().unwrap().width > 0 {
+                    highgui::imshow("Video", &frame).unwrap();
+                }
+                debug!("play");
+                let _key = highgui::wait_key(10).unwrap();
+            }
+            Err(e) => break error!("play err: {e}"),
         }
-        let _key = highgui::wait_key(10).unwrap();
     }
+    Ok(())
 }
 
 async fn capture(v_conn: quic::Connection, mut cam: VideoCapture) -> anyhow::Result<()> {
+    let mut frame = Mat::default();
     loop {
-        let mut frame = Mat::default();
         cam.read(&mut frame).unwrap();
         if frame.size().unwrap().width > 0 {
-            let mut send = v_conn.open_uni().await?;
-            // 对图片编码
-            let params = opencv::types::VectorOfi32::new();
-            let mut buf = opencv::types::VectorOfu8::new();
-            opencv::imgcodecs::imencode(".jpg", &frame, &mut buf, &params)?;
+            match v_conn.open_uni().await {
+                Ok(mut send) => {
+                    // 对图片编码
+                    let params = opencv::types::VectorOfi32::new();
+                    let mut buf = opencv::types::VectorOfu8::new();
 
-            send.write_all(buf.as_slice()).await?;
-            send.finish().await?;
+                    opencv::imgcodecs::imencode(".jpg", &frame, &mut buf, &params)?;
+
+                    debug!("图片编码 前{} 后{}", frame.data_bytes()?.len(), buf.len());
+
+                    send.write_all(buf.as_slice()).await?;
+                    send.finish().await?;
+                }
+                Err(e) => break error!("capture err: {e}"),
+            };
         }
     }
+    Ok(())
 }

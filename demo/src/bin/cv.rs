@@ -28,25 +28,24 @@ fn capture_video() {
         cam.read(&mut frame).unwrap();
 
         if frame.size().unwrap().width > 0 {
-            highgui::imshow("Video", &frame).unwrap();
+            println!("{}", frame.data_bytes().unwrap().len());
+            let params = opencv::types::VectorOfi32::new();
+            let mut buf = opencv::types::VectorOfu8::new();
+            opencv::imgcodecs::imencode(".jpg", &frame, &mut buf, &params).unwrap();
+            let t = opencv::imgcodecs::imdecode(&buf, opencv::imgcodecs::IMREAD_COLOR).unwrap();
+            assert_eq!(t.data_bytes().unwrap().len(),frame.data_bytes().unwrap().len());
+            println!("{}", buf.len());
+            highgui::imshow("Video", &t).unwrap();
         }
 
         let key = highgui::wait_key(10).unwrap();
         if key == 27 {
             break;
         }
-        if n == 0 {
-            println!("{}", frame.data_bytes().unwrap().len());
-            let params = opencv::types::VectorOfi32::new();
-            let mut buf = opencv::types::VectorOfu8::new();
-            opencv::imgcodecs::imencode(".jpg", &frame, &mut buf, &params).unwrap();
-            opencv::imgcodecs::imdecode(&buf, opencv::imgcodecs::IMREAD_COLOR).unwrap();
-            println!("{}", buf.len());
-        }
-        n += 1;
-        if n == 100 {
-            break;
-        }
+        // n += 1;
+        // if n == 100 {
+        //     break;
+        // }
     }
     println!("{}", (std::time::Instant::now() - start).as_secs_f64())
 }

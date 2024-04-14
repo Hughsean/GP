@@ -1,4 +1,6 @@
-use std::{fmt::Display, fs, net::SocketAddr, sync::Arc};
+use std::{fmt::Display, fs, net::SocketAddr, sync::Arc, time::Duration};
+
+use quic::IdleTimeout;
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub enum Message {
@@ -85,7 +87,11 @@ pub fn make_endpoint(enable: EndpointType) -> anyhow::Result<quic::Endpoint> {
                 .with_single_cert(certs, key)?;
             let mut server_config = quic::ServerConfig::with_crypto(Arc::new(server_crypto));
             let transport_config = Arc::get_mut(&mut server_config.transport).unwrap();
-            transport_config.max_concurrent_uni_streams(100_u8.into());
+            transport_config.max_concurrent_uni_streams(u16::MAX.into());
+            // transport_config.max_concurrent_bidi_streams(value)
+            // transport_config.keep_alive_interval(Some(Duration::from_millis(300)));
+            // transport_config.max_idle_timeout(Some(IdleTimeout::try_from(Duration::from_secs(5))?));
+            // transport_config.max_idle_timeout(None);
             endpoint = quic::Endpoint::server(server_config, listen)?;
         }
         EndpointType::Client(addr) => {
@@ -96,6 +102,7 @@ pub fn make_endpoint(enable: EndpointType) -> anyhow::Result<quic::Endpoint> {
                 .with_root_certificates(roots)
                 .with_no_client_auth();
             let client_config = quic::ClientConfig::new(Arc::new(client_crypto));
+
             endpoint = quic::Endpoint::client(addr)?;
             endpoint.set_default_client_config(client_config);
         }

@@ -14,10 +14,18 @@ struct Client {
     pub ctrl_conn: quic::Connection,
     /// 音频连接
     pub a_conn: quic::Connection,
+    // pub a_conn_send: quic::Connection,
     /// 视频连接
     pub v_conn: quic::Connection,
+    // pub v_conn_send: quic::Connection,
+    // /// 音频连接
+    // pub a_conn_recv: quic::Connection,
+    // pub a_conn_send: quic::Connection,
+    // /// 视频连接
+    // pub v_conn_recv: quic::Connection,
+    // pub v_conn_send: quic::Connection,
     ///
-    pub is_waiting: Option<Arc<tokio::sync::Mutex<bool>>>,
+    pub ctrl: Option<Arc<tokio::sync::Mutex<Option<quic::Connection>>>>,
 }
 
 type ClientMap = Arc<tokio::sync::Mutex<HashMap<String, Client>>>;
@@ -34,20 +42,18 @@ fn main() {
 
 #[tokio::main]
 async fn run(_config: Config) -> anyhow::Result<()> {
-    let map = Arc::new(tokio::sync::Mutex::new(HashMap::new()));
+    let clients = Arc::new(tokio::sync::Mutex::new(HashMap::new()));
 
     let ctrl_listen = "0.0.0.0:12345".parse::<SocketAddr>()?;
     let data_listen = "0.0.0.0:12346".parse::<SocketAddr>()?;
 
     let ctrl_endp = common::make_endpoint(common::EndpointType::Server(ctrl_listen))?;
-    let data_endp = Arc::new(tokio::sync::Mutex::new(common::make_endpoint(
-        common::EndpointType::Server(data_listen),
-    )?));
+    let data_endp = common::make_endpoint(common::EndpointType::Server(data_listen))?;
 
     info!("监听 {}", ctrl_endp.local_addr()?);
     //
     while let Some(conn) = ctrl_endp.accept().await {
-        let fut = handler::handle_connection(conn, map.clone(), data_endp.clone());
+        let fut = handler::handle_connection(conn, clients.clone(), data_endp.clone());
         tokio::spawn(async move {
             if let Err(e) = fut.await {
                 warn!("连接失败: {reason}", reason = e.to_string())

@@ -31,7 +31,7 @@ fn record(sender: Sender<Vec<f32>>) {
             move |data: &[f32], _| {
                 // 这里的 `data` 包含了捕获的音频数据
                 // 你可以在这里处理数据，比如写入文件等
-                // println!("send: {}", data.len());
+                println!("send: {}", data.len() * 4);
                 sender.send(data.into()).unwrap();
             },
             move |err| {
@@ -40,7 +40,6 @@ fn record(sender: Sender<Vec<f32>>) {
             None,
         )
         .unwrap();
-    
 
     println!("Successfully built input stream. Starting...");
     // 开始捕获音频数据
