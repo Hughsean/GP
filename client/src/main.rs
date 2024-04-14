@@ -4,13 +4,15 @@ use call::call;
 use clap::Parser;
 use command::Cli;
 
-use log::{error, info};
 use quic::Endpoint;
+use tracing::{error, info};
 
 #[tokio::main]
 async fn main() {
-    std::env::set_var("RUST_LOG", "client=DEBUG");
-    env_logger::init();
+    tracing_subscriber::fmt()
+        .with_line_number(true)
+        .with_env_filter("client=debug")
+        .init();
 
     let cli = command::Cli::parse();
     let ctrl_addr: SocketAddr = cli

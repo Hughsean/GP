@@ -1,5 +1,5 @@
 use anyhow::anyhow;
-use log::{debug, error, info};
+use tracing::{debug, error, info};
 use opencv::{
     highgui,
     prelude::*,

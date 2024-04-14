@@ -4,7 +4,7 @@ use crate::{
 };
 use anyhow::anyhow;
 use cpal::{traits::StreamTrait, Stream};
-use log::{debug, error, info};
+use tracing::{debug, error, info};
 use opencv::videoio::VideoCapture;
 use quic::{Connection, Endpoint};
 use std::{net::SocketAddr, sync::Arc};

@@ -1,18 +1,15 @@
-use std::{net::SocketAddr, sync::Arc, thread::sleep, time::Duration};
+use std::{net::SocketAddr, sync::Arc};
 
 use anyhow::{anyhow, Context, Result};
 
 use common::Message;
 
-use cpal::{traits::StreamTrait, Stream};
-use log::{debug, error, info};
-use opencv::videoio::VideoCapture;
-use quic::{Connection, Endpoint};
+use cpal::traits::StreamTrait;
 
-use crate::{
-    audio::{audio, make_input_stream, make_output_stream, vf32_to_vu8, vu8_to_vf32},
-    video::{make_cam, video},
-};
+use quic::{Connection, Endpoint};
+use tracing::{debug, info};
+
+use crate::audio::{audio, make_input_stream, make_output_stream};
 
 //
 pub async fn wait(
@@ -51,6 +48,7 @@ pub async fn wait(
         if info.is_ok() {
             debug!("请求被接受");
             let a_conn = aendp.connect(data_addr, server_name)?.await?;
+            //todo
             let v_conn = vendp.connect(data_addr, server_name)?.await?;
 
             info!("已创建音视频连接");

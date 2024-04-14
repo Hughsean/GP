@@ -1,5 +1,7 @@
 use config::Config;
-use log::{info, warn};
+use tracing::{info, warn, Level};
+use tracing_subscriber::fmt::time;
+// use log::{info, warn};
 use std::{collections::HashMap, net::SocketAddr, sync::Arc};
 
 // const FRAME_LEN: usize = 691200;
@@ -31,8 +33,12 @@ struct Client {
 type ClientMap = Arc<tokio::sync::Mutex<HashMap<String, Client>>>;
 
 fn main() {
-    std::env::set_var("RUST_LOG", "server=DEBUG");
-    env_logger::init();
+    // std::env::set_var("RUST_LOG", "server=DEBUG");
+    tracing_subscriber::fmt()
+        .with_line_number(true)
+        .with_env_filter("server=debug")
+        // .with_max_level(Level::DEBUG)
+        .init();
 
     let config = Config::new(None);
     if let Err(e) = run(config) {

@@ -4,7 +4,7 @@ use cpal::{
     traits::{DeviceTrait, HostTrait},
     StreamConfig,
 };
-use log::{debug, error, info, warn};
+use tracing::{debug, error, info};
 
 pub fn make_input_stream(send: std::sync::mpsc::Sender<Vec<f32>>) -> cpal::Stream {
     // 获取默认主机

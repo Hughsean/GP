@@ -2,8 +2,8 @@ use std::{sync::Arc, time::Duration};
 
 use anyhow::anyhow;
 
-use log::{debug, error, info, warn};
 use quic::{Connection, Endpoint, SendStream};
+use tracing::{debug, error, info, warn};
 
 use crate::{Client, ClientMap};
 
