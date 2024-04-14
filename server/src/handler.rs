@@ -78,21 +78,6 @@ async fn handle_req(
                 info!("音视频连接建立");
                 info!("name({}) 加入等待接听列表", name);
 
-                // 'test: {
-                //     debug!("连接测试");
-                //     let msg = common::Message::Close;
-
-                //     match a_conn.accept_bi().await {
-                //         Ok((mut s, mut r)) => {
-                //             let data = r.read_to_end(usize::MAX).await?;
-                //             debug!("{}", data.len());
-
-                //             debug!("pass1")
-                //         }
-                //         Err(e) => error!("{} {e}", line!()),
-                //     }
-                // }
-
                 let ctrl = Arc::new(tokio::sync::Mutex::new(Some(ctrl_conn.clone())));
                 let ctrl_c = ctrl.clone();
                 let ctrl = Some(ctrl);
@@ -156,10 +141,10 @@ async fn handle_req(
                 return Ok(());
             }
 
-            // 视频连接
-            let v_conn = data_endp.accept().await.unwrap().await?;
             // 音频连接
             let a_conn = data_endp.accept().await.unwrap().await?;
+            // 视频连接
+            let v_conn = data_endp.accept().await.unwrap().await?;
 
             debug!("接收音视频连接");
 
@@ -296,7 +281,6 @@ async fn exchange_(a: quic::Connection, b: quic::Connection) -> anyhow::Result<(
     info!("数据转发停止");
     Ok(())
 }
-// a to p
 #[allow(dead_code)]
 async fn transfer_(a: quic::Connection, b: quic::Connection) -> anyhow::Result<()> {
     // a to p
@@ -337,27 +321,6 @@ async fn transfer_(a: quic::Connection, b: quic::Connection) -> anyhow::Result<(
                 (Err(e), Ok(_)) => break error!("a accept: {e} {}", line!()),
                 (Err(ea), Err(eb)) => break error!("accept: {ea} {eb} {}", line!()),
             }
-
-            // match a.accept_bi().await {
-            //     Ok((_, mut a_r)) => {
-            //         debug!("接收传入流");
-            //         if let Ok(data) = a_r.read_to_end(usize::MAX).await {
-            //             match b.accept_bi().await {
-            //                 Ok((mut p_s, _)) => {
-            //                     debug!("转发字节大小: {}", data.len());
-            //                     debug!("打开输出流");
-            //                     if !(p_s.write_all(&data).await.is_ok()
-            //                         && p_s.finish().await.is_ok())
-            //                     {
-            //                         break error!("数据发送错误");
-            //                     }
-            //                 }
-            //                 Err(e) => break error!("p accept err: {e}"),
-            //             }
-            //         }
-            //     }
-            //     Err(e) => break error!("a accept err: {e}"),
-            // }
         }
     };
     fut.await;

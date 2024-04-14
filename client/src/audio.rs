@@ -57,20 +57,20 @@ pub async fn audio(
 ) {
     if let Ok((mut send, mut recv)) = a_conn.open_bi().await {
         info!("流建立 {}", line!());
-        let mut sbuf = vec![0u8; 5 * 1024];
-        let mut rbuf = vec![0u8; 5 * 1024];
+        let mut sbuf = vec![0u8; 4 * 1024];
+        let mut rbuf = vec![0u8; 4 * 1024];
 
         let fut1 = async move {
             loop {
                 match input_recv.lock().await.recv() {
                     Ok(data) => {
-                        debug!("读取设备音频数据");
+                        // debug!("读取设备音频数据");
                         let data = vf32_to_vu8(data);
                         data_write_to_buf(&mut sbuf, data);
                         if send.write_all(&sbuf).await.is_err() {
                             break;
                         }
-                        debug!("发送音频数据");
+                        // debug!("发送音频数据");
                     }
                     Err(e) => break error!("{e} {}", line!()),
                 }
@@ -81,7 +81,7 @@ pub async fn audio(
             loop {
                 match recv.read_exact(rbuf.as_mut_slice()).await {
                     Ok(_) => {
-                        debug!("接收音频数据");
+                        // debug!("接收音频数据");
                         let data = data_read_from_buf(&rbuf);
                         let data = vu8_to_vf32(data);
                         match output_send.lock().await.send(data) {

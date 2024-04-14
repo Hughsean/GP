@@ -42,10 +42,6 @@ fn capture_video() {
         if key == 27 {
             break;
         }
-        // n += 1;
-        // if n == 100 {
-        //     break;
-        // }
     }
     println!("{}", (std::time::Instant::now() - start).as_secs_f64())
 }

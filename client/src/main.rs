@@ -37,19 +37,6 @@ async fn main() {
         common::make_endpoint(common::EndpointType::Client("0.0.0.0:0".parse().unwrap())).unwrap();
     let vendp =
         common::make_endpoint(common::EndpointType::Client("0.0.0.0:0".parse().unwrap())).unwrap();
-    // // .unwrap();
-    // // let ar_endp = common::make_endpoint(common::EndpointType::Client(
-    // //     "0.0.0.0:9091".parse().unwrap(),
-    // // ))
-    // .unwrap();
-    // let v_endp = common::make_endpoint(common::EndpointType::Client(
-    //     "0.0.0.0:9092".parse().unwrap(),
-    // ))
-    // .unwrap();
-    // let vr_endp = common::make_endpoint(common::EndpointType::Client(
-    //     "0.0.0.0:9093".parse().unwrap(),
-    // ))
-    // .unwrap();
 
     match cli.command {
         command::Commands::Wait => {

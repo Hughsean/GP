@@ -12,6 +12,9 @@ async fn main() -> anyhow::Result<()> {
 
     let t = tokio::spawn(async move {
         let ca = sendp.accept().await.unwrap().await.unwrap();
+        let caa = sendp.accept().await.unwrap().await.unwrap();
+        let caa = sendp.accept().await.unwrap().await.unwrap();
+
         let cb = sendp.accept().await.unwrap().await.unwrap();
         exchange(ca, cb).await.unwrap();
     });
@@ -20,11 +23,15 @@ async fn main() -> anyhow::Result<()> {
         .connect("127.0.0.1:12345".parse()?, "localhost")
         .unwrap()
         .await?;
-    // let caa = cendpa
-    //     .connect("127.0.0.1:12345".parse()?, "localhost")
-    //     .unwrap()
-    //     .await?;
 
+    let caa = cendpa
+        .connect("127.0.0.1:12345".parse()?, "localhost")
+        .unwrap()
+        .await?;
+    let caaa = cendpa
+    .connect("127.0.0.1:12345".parse()?, "localhost")
+    .unwrap()
+    .await?;
     let cb = cendpb
         .connect("127.0.0.1:12345".parse()?, "localhost")
         .unwrap()

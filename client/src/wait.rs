@@ -54,7 +54,47 @@ pub async fn wait(
             let v_conn = vendp.connect(data_addr, server_name)?.await?;
 
             info!("已创建音视频连接");
-            fun(ctrl_conn.clone(), a_conn).await?;
+
+            let (input_send, input_recv) = std::sync::mpsc::channel::<Vec<f32>>();
+            let (output_send, output_recv) = std::sync::mpsc::channel::<Vec<f32>>();
+
+            let input_recv_a = Arc::new(tokio::sync::Mutex::new(input_recv));
+            let output_send_a = Arc::new(tokio::sync::Mutex::new(output_send.clone()));
+
+            let input_stream = make_input_stream(input_send.clone());
+            let output_stream = make_output_stream(output_recv);
+
+            info!("音频设备配置成功");
+            info!("等待被呼叫");
+            loop {
+                let (_, mut wake_recv) = ctrl_conn.accept_bi().await?;
+
+                let data_recv = wake_recv.read_to_end(usize::MAX).await?;
+                let msg: common::Message =
+                    serde_json::from_slice(&data_recv).context("信息解析错误")?;
+                match msg {
+                    Message::Result(common::Info::Wait) => {
+                        debug!("收到服务器等待保活信息");
+                        continue;
+                    }
+                    Message::Result(common::Info::Wake) => break,
+                    _ => {
+                        return Err(anyhow!("错误信息"));
+                    }
+                }
+            }
+
+            info!("被服务器唤醒");
+            input_stream.play().unwrap();
+            output_stream.play().unwrap();
+            info!("音频设备启动");
+
+            let t1 = tokio::spawn(audio(
+                a_conn.clone(),
+                input_recv_a.clone(),
+                output_send_a.clone(),
+            ));
+            let _ = tokio::join!(t1);
         } else {
             return Err(anyhow!("请求错误"));
         }
@@ -63,47 +103,47 @@ pub async fn wait(
     Ok(ctrl_conn)
 }
 
-/// 被呼叫
-async fn fun(ctrl_conn: Connection, a_conn: Connection) -> anyhow::Result<()> {
-    let (input_send, input_recv) = std::sync::mpsc::channel::<Vec<f32>>();
-    let (output_send, output_recv) = std::sync::mpsc::channel::<Vec<f32>>();
+// 被呼叫
+// async fn fun(ctrl_conn: Connection, a_conn: Connection) -> anyhow::Result<()> {
+//     let (input_send, input_recv) = std::sync::mpsc::channel::<Vec<f32>>();
+//     let (output_send, output_recv) = std::sync::mpsc::channel::<Vec<f32>>();
 
-    let input_recv_a = Arc::new(tokio::sync::Mutex::new(input_recv));
-    let output_send_a = Arc::new(tokio::sync::Mutex::new(output_send.clone()));
+//     let input_recv_a = Arc::new(tokio::sync::Mutex::new(input_recv));
+//     let output_send_a = Arc::new(tokio::sync::Mutex::new(output_send.clone()));
 
-    let input_stream = make_input_stream(input_send.clone());
-    let output_stream = make_output_stream(output_recv);
+//     let input_stream = make_input_stream(input_send.clone());
+//     let output_stream = make_output_stream(output_recv);
 
-    info!("音频设备配置成功");
-    info!("等待被呼叫");
-    loop {
-        let (_, mut wake_recv) = ctrl_conn.accept_bi().await?;
+//     info!("音频设备配置成功");
+//     info!("等待被呼叫");
+//     loop {
+//         let (_, mut wake_recv) = ctrl_conn.accept_bi().await?;
 
-        let data_recv = wake_recv.read_to_end(usize::MAX).await?;
-        let msg: common::Message = serde_json::from_slice(&data_recv).context("信息解析错误")?;
-        match msg {
-            Message::Result(common::Info::Wait) => {
-                debug!("收到服务器等待保活信息");
-                continue;
-            }
-            Message::Result(common::Info::Wake) => break,
-            _ => {
-                return Err(anyhow!("错误信息"));
-            }
-        }
-    }
+//         let data_recv = wake_recv.read_to_end(usize::MAX).await?;
+//         let msg: common::Message = serde_json::from_slice(&data_recv).context("信息解析错误")?;
+//         match msg {
+//             Message::Result(common::Info::Wait) => {
+//                 debug!("收到服务器等待保活信息");
+//                 continue;
+//             }
+//             Message::Result(common::Info::Wake) => break,
+//             _ => {
+//                 return Err(anyhow!("错误信息"));
+//             }
+//         }
+//     }
 
-    info!("被服务器唤醒");
-    input_stream.play().unwrap();
-    output_stream.play().unwrap();
-    info!("音频设备启动");
+//     info!("被服务器唤醒");
+//     input_stream.play().unwrap();
+//     output_stream.play().unwrap();
+//     info!("音频设备启动");
 
-    let t1 = tokio::spawn(audio(
-        a_conn.clone(),
-        input_recv_a.clone(),
-        output_send_a.clone(),
-    ));
-    let _ = tokio::join!(t1);
+//     let t1 = tokio::spawn(audio(
+//         a_conn.clone(),
+//         input_recv_a.clone(),
+//         output_send_a.clone(),
+//     ));
+//     let _ = tokio::join!(t1);
 
-    Ok(())
-}
+//     Ok(())
+// }
