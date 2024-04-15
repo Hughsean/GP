@@ -11,7 +11,7 @@ use tracing::{debug, error, info};
 
 use crate::{
     audio::{audio_uni, make_input_stream, make_output_stream},
-    video::make_cam,
+    video::{self, make_cam},
 };
 
 //
@@ -24,19 +24,25 @@ pub async fn wait(
     server_name: &str,
     name: &str,
 ) -> Result<Connection> {
+    // 音频设备
+    let (a_input_send, a_input_recv) = std::sync::mpsc::channel::<Vec<f32>>();
+    let (a_output_send, a_output_recv) = std::sync::mpsc::channel::<Vec<f32>>();
+
+    let a_input_recv_a = Arc::new(tokio::sync::Mutex::new(a_input_recv));
+    let a_output_send_a = Arc::new(tokio::sync::Mutex::new(a_output_send.clone()));
+
+    let input_stream = make_input_stream(a_input_send.clone());
+    let output_stream = make_output_stream(a_output_recv);
+    info!("音频设备配置成功");
+    //////////////////////////////////////////////
     // 视频设备
     let mut cam = make_cam()?;
     info!("摄像头启动");
-    // 音频设备
-    let (input_send, input_recv) = std::sync::mpsc::channel::<Vec<f32>>();
-    let (output_send, output_recv) = std::sync::mpsc::channel::<Vec<f32>>();
-
-    let input_recv_a = Arc::new(tokio::sync::Mutex::new(input_recv));
-    let output_send_a = Arc::new(tokio::sync::Mutex::new(output_send.clone()));
-
-    let input_stream = make_input_stream(input_send.clone());
-    let output_stream = make_output_stream(output_recv);
-    info!("音频设备配置成功");
+    let (vinput_send, vinput_recv) = std::sync::mpsc::channel::<Vec<u8>>();
+    let (voutput_send, voutput_recv) = std::sync::mpsc::channel::<Vec<u8>>();
+    let vinput_recv_a = Arc::new(tokio::sync::Mutex::new(vinput_recv));
+    let voutput_send_a = Arc::new(tokio::sync::Mutex::new(voutput_send.clone()));
+    /////////////////////////////////////////////
 
     let ctrl_conn = endp.connect(ctrl_addr, server_name)?.await?;
     let (mut send, mut recv) = ctrl_conn.open_bi().await?;
@@ -102,14 +108,28 @@ pub async fn wait(
             output_stream.play().unwrap();
             info!("音频设备启动");
 
-            let t1 = tokio::spawn(audio_uni(
+            let t1 = std::thread::spawn(move || {
+                let _ = video::capture_c(&mut cam, vinput_send.clone());
+            });
+            let t2 = std::thread::spawn(move || {
+                let _ = video::display_c(voutput_recv);
+            });
+
+            let t3 = tokio::spawn(audio_uni(
                 a_conn.clone(),
-                input_recv_a.clone(),
-                output_send_a.clone(),
+                a_input_recv_a.clone(),
+                a_output_send_a.clone(),
             ));
 
-            let _ = tokio::spawn(crate::video::video(v_conn.clone(), cam)).await;
-            let _ = t1.await;
+            let _ = tokio::spawn(crate::video::video_chanel(
+                v_conn.clone(),
+                vinput_recv_a,
+                voutput_send_a,
+            ))
+            .await;
+            let _ = t3.await;
+            let _ = t1.join();
+            let _ = t2.join();
         } else {
             return Err(anyhow!("请求错误"));
         }

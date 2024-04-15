@@ -246,10 +246,10 @@ async fn exchange_uni(
                             {
                                 break error!("send to b");
                             } else {
-                                a2b += 1;
-                                if a2b % 20 == 0 {
+                                if a2b % 40 == 0 {
                                     debug!("转发包 {name}");
                                 }
+                                a2b += 1;
                             }
                         } else {
                             break error!("read from a");
@@ -290,10 +290,10 @@ async fn exchange_uni(
                             {
                                 break error!("send to a");
                             } else {
-                                b2a += 1;
-                                if b2a % 20 == 0 {
+                                if b2a % 40 == 0 {
                                     debug!("转发包 {name}");
                                 }
+                                b2a += 1;
                             }
                         } else {
                             break error!("read from b");
@@ -492,7 +492,7 @@ async fn exchange_once_accept(a: quic::Connection, b: quic::Connection) -> anyho
 }
 
 #[allow(dead_code)]
-async fn transfer_(a: quic::Connection, b: quic::Connection) -> anyhow::Result<()> {
+async fn transfer_dispared(a: quic::Connection, b: quic::Connection) -> anyhow::Result<()> {
     // a to p
     let fut = async move {
         loop {

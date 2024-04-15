@@ -1,6 +1,6 @@
 use crate::{
     audio::{audio_uni, make_input_stream, make_output_stream},
-    video::make_cam,
+    video::{self, make_cam},
 };
 use anyhow::anyhow;
 use cpal::traits::StreamTrait;
@@ -22,16 +22,25 @@ pub async fn call(
     let mut cam = make_cam()?;
     info!("摄像头启动");
     //---------------------
-    let (input_send, input_recv) = std::sync::mpsc::channel::<Vec<f32>>();
-    let (output_send, output_recv) = std::sync::mpsc::channel::<Vec<f32>>();
+    let (ainput_send, ainput_recv) = std::sync::mpsc::channel::<Vec<f32>>();
+    let (aoutput_send, aoutput_recv) = std::sync::mpsc::channel::<Vec<f32>>();
 
-    let input_recv_a = Arc::new(tokio::sync::Mutex::new(input_recv));
-    let output_send_a = Arc::new(tokio::sync::Mutex::new(output_send.clone()));
+    let ainput_recv_a = Arc::new(tokio::sync::Mutex::new(ainput_recv));
+    let aoutput_send_a = Arc::new(tokio::sync::Mutex::new(aoutput_send.clone()));
 
-    let input_stream = make_input_stream(input_send.clone());
-    let output_stream = make_output_stream(output_recv);
+    let input_stream = make_input_stream(ainput_send.clone());
+    let output_stream = make_output_stream(aoutput_recv);
     info!("音频设备配置成功");
     //---------------------
+    //////////////////////////////////////////////
+    // 视频设备
+    let mut cam = make_cam()?;
+    info!("摄像头启动");
+    let (vinput_send, vinput_recv) = std::sync::mpsc::channel::<Vec<u8>>();
+    let (voutput_send, voutput_recv) = std::sync::mpsc::channel::<Vec<u8>>();
+    let vinput_recv_a = Arc::new(tokio::sync::Mutex::new(vinput_recv));
+    let voutput_send_a = Arc::new(tokio::sync::Mutex::new(voutput_send.clone()));
+    /////////////////////////////////////////////
 
     let ctrl_conn = endp.connect(ctrl_addr, server_name)?;
     let ctrl_conn = ctrl_conn.await?;
@@ -54,21 +63,42 @@ pub async fn call(
         let a_conn = aendp.connect(data_addr, server_name)?.await?;
         let v_conn = vendp.connect(data_addr, server_name)?.await?;
         info!("已建立音视频连接");
+        let t1 = std::thread::spawn(move || {
+            let _ = video::capture_c(&mut cam, vinput_send.clone());
+        });
+        let t2 = std::thread::spawn(move || {
+            let _ = video::display_c(voutput_recv);
+        });
 
-        // 音频
-        output_stream.play().unwrap();
-        input_stream.play().unwrap();
-        info!("音频设备启动");
-
-        let t1 = tokio::spawn(audio_uni(
+        let t3 = tokio::spawn(audio_uni(
             a_conn.clone(),
-            input_recv_a.clone(),
-            output_send_a.clone(),
+            ainput_recv_a.clone(),
+            aoutput_send_a.clone(),
         ));
-        // 视频
-  
-        let _ = tokio::spawn(crate::video::video(v_conn.clone(), cam)).await;
-        let _ = t1.await;
+
+        let _ = tokio::spawn(crate::video::video_chanel(
+            v_conn.clone(),
+            vinput_recv_a,
+            voutput_send_a,
+        ))
+        .await;
+        let _ = t3.await;
+        let _ = t1.join();
+        let _ = t2.join();
+        // // 音频
+        // output_stream.play().unwrap();
+        // input_stream.play().unwrap();
+        // info!("音频设备启动");
+
+        // let t1 = tokio::spawn(audio_uni(
+        //     a_conn.clone(),
+        //     ainput_recv_a.clone(),
+        //     aoutput_send_a.clone(),
+        // ));
+        // // 视频
+
+        // let _ = tokio::spawn(crate::video::video(v_conn.clone(), cam)).await;
+        // let _ = t1.await;
 
         info!("呼叫结束");
     } else {
