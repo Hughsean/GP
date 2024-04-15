@@ -69,12 +69,12 @@ async fn handle_req(
                 let msg = common::Message::Result(common::Info::Ok);
                 send.write_all(&msg.to_vec_u8()).await.unwrap();
                 send.finish().await?;
-                
+
                 // 音频连接
                 let a_conn = data_endp.accept().await.unwrap().await?;
                 // 视频连接
                 let v_conn = data_endp.accept().await.unwrap().await?;
-                
+
                 info!("音视频连接建立");
                 info!("name({}) 加入等待接听列表", name);
 
@@ -187,13 +187,14 @@ pub async fn handle_call(active: Client, passive: Client) -> anyhow::Result<()> 
     wake_sent.finish().await?;
 
     // 转发数据
-    let t1 = tokio::spawn(exchange(active.a_conn, passive.a_conn));
+    let t1 = tokio::spawn(exchange_uni(active.a_conn, passive.a_conn));
     info!("转发音频数据");
     let _ = tokio::join!(t1);
     Ok(())
 }
 
-async fn exchange(a: quic::Connection, b: quic::Connection) -> anyhow::Result<()> {
+#[allow(dead_code)]
+async fn exchange_once_accept(a: quic::Connection, b: quic::Connection) -> anyhow::Result<()> {
     let (mut a_send, mut a_recv) = a.accept_bi().await?;
     debug!("收到a连接");
     let (mut b_send, mut b_recv) = b.accept_bi().await?;
@@ -231,7 +232,7 @@ async fn exchange(a: quic::Connection, b: quic::Connection) -> anyhow::Result<()
     Ok(())
 }
 
-async fn exchange_(a: quic::Connection, b: quic::Connection) -> anyhow::Result<()> {
+async fn exchange_uni(a: quic::Connection, b: quic::Connection) -> anyhow::Result<()> {
     let a_c = a.clone();
     let b_c = b.clone();
 
@@ -242,15 +243,15 @@ async fn exchange_(a: quic::Connection, b: quic::Connection) -> anyhow::Result<(
                 (Ok(mut recv), Ok(mut send)) => {
                     if let Ok(data) = recv.read_to_end(usize::MAX).await {
                         if send.write_all(&data).await.is_err() || send.finish().await.is_err() {
-                            break error!("{}", line!());
+                            break error!("send");
                         }
                     } else {
-                        break error!("{}", line!());
+                        break error!("read");
                     }
                 }
-                (Ok(_), Err(e)) => break error!("b open {} {e}", line!()),
-                (Err(e), Ok(_)) => break error!("a acpt {} {e}", line!()),
-                (Err(_), Err(_)) => break error!("{}", line!()),
+                (Ok(_), Err(e)) => break error!("b open {e}"),
+                (Err(e), Ok(_)) => break error!("a acpt {e}"),
+                (Err(_), Err(_)) => break error!("err"),
             }
         }
     };
@@ -262,15 +263,15 @@ async fn exchange_(a: quic::Connection, b: quic::Connection) -> anyhow::Result<(
                 (Ok(mut recv), Ok(mut send)) => {
                     if let Ok(data) = recv.read_to_end(usize::MAX).await {
                         if send.write_all(&data).await.is_err() || send.finish().await.is_err() {
-                            break error!("{}", line!());
+                            break error!("send");
                         }
                     } else {
-                        break error!("{}", line!());
+                        break error!("read");
                     }
                 }
-                (Ok(_), Err(e)) => break error!("a open {} {e}", line!()),
-                (Err(e), Ok(_)) => break error!("b acpt {} {e}", line!()),
-                (Err(_), Err(_)) => break error!("{}", line!()),
+                (Ok(_), Err(e)) => break error!("a open {e}"),
+                (Err(e), Ok(_)) => break error!("b acpt {e}"),
+                (Err(_), Err(_)) => break error!("err"),
             }
         }
     };

@@ -9,7 +9,7 @@ use cpal::traits::StreamTrait;
 use quic::{Connection, Endpoint};
 use tracing::{debug, info};
 
-use crate::audio::{audio, make_input_stream, make_output_stream};
+use crate::audio::{audio_one_open, audio_uni, make_input_stream, make_output_stream};
 
 //
 pub async fn wait(
@@ -87,7 +87,7 @@ pub async fn wait(
             output_stream.play().unwrap();
             info!("音频设备启动");
 
-            let t1 = tokio::spawn(audio(
+            let t1 = tokio::spawn(audio_uni(
                 a_conn.clone(),
                 input_recv_a.clone(),
                 output_send_a.clone(),

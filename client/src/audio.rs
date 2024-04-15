@@ -50,7 +50,7 @@ pub fn make_output_stream(recv: std::sync::mpsc::Receiver<Vec<f32>>) -> cpal::St
     stream
 }
 
-pub async fn audio(
+pub async fn audio_one_open(
     a_conn: quic::Connection,
     input_recv: Arc<tokio::sync::Mutex<std::sync::mpsc::Receiver<Vec<f32>>>>,
     output_send: Arc<tokio::sync::Mutex<std::sync::mpsc::Sender<Vec<f32>>>>,
@@ -103,7 +103,7 @@ pub async fn audio(
     }
 }
 
-pub async fn audio__(
+pub async fn audio_uni(
     a_conn: quic::Connection,
     input_recv: Arc<tokio::sync::Mutex<std::sync::mpsc::Receiver<Vec<f32>>>>,
     output_send: Arc<tokio::sync::Mutex<std::sync::mpsc::Sender<Vec<f32>>>>,
@@ -122,15 +122,16 @@ pub async fn audio__(
 
                     if let Ok(mut send) = a_conn_c.open_uni().await {
                         if send.write_all(&vu8).await.is_err() || send.finish().await.is_err() {
-                            break error!("{}", line!());
+                            break error!("send");
                         }
                     } else {
-                        break error!("{}", line!());
+                        break error!("open");
                     }
                 }
-                Err(e) => break error!("{e} {}", line!()),
+                Err(e) => break error!("{e}"),
             };
         }
+        a_conn_c.close(0u8.into(), b"close");
         Ok::<(), anyhow::Error>(())
     });
 
@@ -143,23 +144,23 @@ pub async fn audio__(
                     if let Ok(data) = recv.read_to_end(usize::MAX).await {
                         let vf32 = vu8_to_vf32(data);
                         if let Err(e) = lock.send(vf32) {
-                            break error!("{e} {}", line!());
+                            break error!("{e}");
                         }
                     } else {
-                        break error!("{}", line!());
+                        break error!("read");
                     }
                 }
-                Err(e) => break error!("{e} {}", line!()),
+                Err(e) => break error!("{e}"),
             }
         }
-
+        a_conn.close(0u8.into(), b"close");
         Ok::<(), anyhow::Error>(())
     });
 
     let _ = tokio::join!(f1, f2);
-
-    // fut1
+    info!("音频结束");
 }
+
 pub async fn audio_(
     a_conn: quic::Connection,
     input_recv: Arc<tokio::sync::Mutex<std::sync::mpsc::Receiver<Vec<f32>>>>,

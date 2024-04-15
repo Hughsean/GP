@@ -1,5 +1,5 @@
 use crate::{
-    audio::{audio, make_input_stream, make_output_stream, vf32_to_vu8, vu8_to_vf32},
+    audio::{audio_one_open, audio_uni, make_input_stream, make_output_stream, vf32_to_vu8, vu8_to_vf32},
     video::{make_cam, video},
 };
 use anyhow::anyhow;
@@ -59,7 +59,7 @@ pub async fn call(
         input_stream.play().unwrap();
         info!("音频设备启动");
 
-        let t1 = tokio::spawn(audio(
+        let t1 = tokio::spawn(audio_uni(
             a_conn.clone(),
             input_recv_a.clone(),
             output_send_a.clone(),
