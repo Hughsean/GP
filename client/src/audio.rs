@@ -50,6 +50,7 @@ pub fn make_output_stream(recv: std::sync::mpsc::Receiver<Vec<f32>>) -> cpal::St
     stream
 }
 
+#[allow(dead_code)]
 pub async fn audio_one_open(
     a_conn: quic::Connection,
     input_recv: Arc<tokio::sync::Mutex<std::sync::mpsc::Receiver<Vec<f32>>>>,
@@ -160,8 +161,9 @@ pub async fn audio_uni(
     let _ = tokio::join!(f1, f2);
     info!("音频结束");
 }
+#[allow(dead_code)]
 
-pub async fn audio_(
+pub async fn audio_bi(
     a_conn: quic::Connection,
     input_recv: Arc<tokio::sync::Mutex<std::sync::mpsc::Receiver<Vec<f32>>>>,
     output_send: Arc<tokio::sync::Mutex<std::sync::mpsc::Sender<Vec<f32>>>>,

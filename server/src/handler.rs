@@ -75,6 +75,22 @@ async fn handle_req(
                 // 视频连接
                 let v_conn = data_endp.accept().await.unwrap().await?;
 
+                // 'test: {
+                //     let data = [0u8; 1024 * 10];
+                //     let mut n = 0;
+                //     loop {
+                //         let (mut s, _) = v_conn.accept_bi().await?;
+                //         s.write_all(&data).await?;
+                //         s.finish().await?;
+                //         info!("send");
+                //         tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+                //         n += 1;
+                //         if n == 10 {
+                //             break;
+                //         }
+                //     }
+                // }
+
                 info!("音视频连接建立");
                 info!("name({}) 加入等待接听列表", name);
 
@@ -187,9 +203,252 @@ pub async fn handle_call(active: Client, passive: Client) -> anyhow::Result<()> 
     wake_sent.finish().await?;
 
     // 转发数据
-    let t1 = tokio::spawn(exchange_uni(active.a_conn, passive.a_conn));
-    info!("转发音频数据");
-    let _ = tokio::join!(t1);
+    let t1 = tokio::spawn(exchange_uni(active.a_conn, passive.a_conn, "音频"));
+    let t2 = tokio::spawn(exchange_uni(active.v_conn, passive.v_conn, "视频"));
+    info!("转发音视频数据");
+    let _ = tokio::join!(t1, t2);
+    Ok(())
+}
+
+async fn exchange_uni(
+    a: quic::Connection,
+    b: quic::Connection,
+    name: &'static str,
+) -> anyhow::Result<()> {
+    let a_c = a.clone();
+    let b_c = b.clone();
+
+    // a to b
+    let fut1 = async move {
+        let mut a2b = 0u32;
+
+        loop {
+            // match (a_c.accept_uni().await, b_c.open_uni().await) {
+            //     (Ok(mut recv), Ok(mut send)) => {
+            //         if let Ok(data) = recv.read_to_end(usize::MAX).await {
+            //             if send.write_all(&data).await.is_err() || send.finish().await.is_err() {
+            //                 break error!("send to b");
+            //             }
+            //         } else {
+            //             break error!("read from a");
+            //         }
+            //     }
+            //     (Ok(_), Err(e)) => break error!("b open {e}"),
+            //     (Err(e), Ok(_)) => break error!("a acpt {e}"),
+            //     (Err(_), Err(_)) => break error!("err"),
+            // }
+
+            match a_c.accept_uni().await {
+                Ok(mut recv) => match b_c.open_uni().await {
+                    Ok(mut send) => {
+                        if let Ok(data) = recv.read_to_end(usize::MAX).await {
+                            if send.write_all(&data).await.is_err() || send.finish().await.is_err()
+                            {
+                                break error!("send to b");
+                            } else {
+                                a2b += 1;
+                                if a2b % 20 == 0 {
+                                    debug!("转发包 {name}");
+                                }
+                            }
+                        } else {
+                            break error!("read from a");
+                        }
+                    }
+                    Err(e) => break error!("b open {e}"),
+                },
+                Err(e) => break error!("a accept {e}"),
+            }
+        }
+    };
+
+    // p to a
+    let fut2 = async move {
+        let mut b2a = 0u32;
+
+        loop {
+            // match (b.accept_uni().await, a.open_uni().await) {
+            //     (Ok(mut recv), Ok(mut send)) => {
+            //         if let Ok(data) = recv.read_to_end(usize::MAX).await {
+            //             if send.write_all(&data).await.is_err() || send.finish().await.is_err() {
+            //                 break error!("send to a");
+            //             }
+            //         } else {
+            //             break error!("read from b");
+            //         }
+            //     }
+            //     (Ok(_), Err(e)) => break error!("a open {e}"),
+            //     (Err(e), Ok(_)) => break error!("b acpt {e}"),
+            //     (Err(_), Err(_)) => break error!("err"),
+            // }
+
+            match b.accept_uni().await {
+                Ok(mut recv) => match a.open_uni().await {
+                    Ok(mut send) => {
+                        if let Ok(data) = recv.read_to_end(usize::MAX).await {
+                            if send.write_all(&data).await.is_err() || send.finish().await.is_err()
+                            {
+                                break error!("send to a");
+                            } else {
+                                b2a += 1;
+                                if b2a % 20 == 0 {
+                                    debug!("转发包 {name}");
+                                }
+                            }
+                        } else {
+                            break error!("read from b");
+                        }
+                    }
+                    Err(e) => break error!("a open {e}"),
+                },
+                Err(e) => break error!("b accept {e}"),
+            }
+        }
+    };
+
+    let t1 = tokio::spawn(fut1);
+    let t2 = tokio::spawn(fut2);
+
+    let _ = tokio::join!(t1, t2);
+    info!("数据转发停止");
+    Ok(())
+}
+
+async fn exchange_bi(a: quic::Connection, b: quic::Connection) -> anyhow::Result<()> {
+    loop {
+        match a.accept_bi().await {
+            Ok((mut a_s, mut a_r)) => match b.accept_bi().await {
+                Ok((mut b_s, mut b_r)) => {
+                    let fut1 = async move {
+                        match a_r.read_to_end(usize::MAX).await {
+                            Ok(data) => {
+                                if b_s.write_all(&data).await.is_err()
+                                    || b_s.finish().await.is_err()
+                                {
+                                    error!("bs")
+                                }
+                            }
+                            Err(e) => error!("ar {e}"),
+                        }
+                    };
+
+                    let fut2 = async move {
+                        match b_r.read_to_end(usize::MAX).await {
+                            Ok(data) => {
+                                if a_s.write_all(&data).await.is_err()
+                                    || a_s.finish().await.is_err()
+                                {
+                                    error!("as")
+                                }
+                            }
+                            Err(e) => error!("br {e}"),
+                        }
+                    };
+
+                    let t1 = tokio::spawn(fut1);
+                    let t2 = tokio::spawn(fut2);
+                    let _ = tokio::join!(t1, t2);
+                }
+                Err(e) => break error!("b accept {e}"),
+            },
+            Err(e) => break error!("a accept {e}"),
+        }
+    }
+    Ok(())
+}
+
+async fn exchange_uni_channel(a: quic::Connection, b: quic::Connection) -> anyhow::Result<()> {
+    let (abs, mut abr) = tokio::sync::mpsc::channel::<Vec<u8>>(1024 * 200);
+    let (bas, mut bar) = tokio::sync::mpsc::channel::<Vec<u8>>(1024 * 200);
+    let a_c = a.clone();
+    let b_c = b.clone();
+
+    // read a
+    let fut1 = async move {
+        loop {
+            match a_c.accept_uni().await {
+                Ok(mut recv) => match recv.read_to_end(usize::MAX).await {
+                    Ok(data) => {
+                        if abs.send(data).await.is_err() {
+                            break error!("abs send");
+                        };
+                    }
+                    Err(_) => break error!("recv a"),
+                },
+                Err(e) => break error!("a accept {e}"),
+            }
+        }
+    };
+
+    let a_c = a.clone();
+
+    // send a
+    let fut2 = async move {
+        loop {
+            match a_c.open_uni().await {
+                Ok(mut send) => {
+                    match bar.recv().await {
+                        Some(data) => {
+                            if send.write_all(&data).await.is_err() || send.finish().await.is_err()
+                            {
+                                break error!("send to a");
+                            }
+                        }
+                        None => break error!("bar recv"),
+                    }
+                    // abs.send(value)
+                }
+                Err(e) => break error!("a accept {e}"),
+            }
+        }
+    };
+
+    // read b
+    let fut3 = async move {
+        loop {
+            match b_c.accept_uni().await {
+                Ok(mut recv) => match recv.read_to_end(usize::MAX).await {
+                    Ok(data) => {
+                        if bas.send(data).await.is_err() {
+                            break error!("bas send");
+                        };
+                    }
+                    Err(_) => break error!("recv b"),
+                },
+                Err(e) => break error!("b accept {e}"),
+            }
+        }
+    };
+    let b_c = a.clone();
+
+    // send b
+    let fut4 = async move {
+        loop {
+            match b_c.open_uni().await {
+                Ok(mut send) => {
+                    match abr.recv().await {
+                        Some(data) => {
+                            if send.write_all(&data).await.is_err() || send.finish().await.is_err()
+                            {
+                                break error!("send to b");
+                            }
+                        }
+                        None => break error!("abr recv"),
+                    }
+                    // abs.send(value)
+                }
+                Err(e) => break error!("b accept {e}"),
+            }
+        }
+    };
+
+    let t1 = tokio::spawn(fut1);
+    let t2 = tokio::spawn(fut2);
+
+    let t3 = tokio::spawn(fut3);
+    let t4 = tokio::spawn(fut4);
+    let _ = tokio::join!(t1, t2, t3, t4);
+    info!("数据转发停止");
     Ok(())
 }
 
@@ -232,71 +491,11 @@ async fn exchange_once_accept(a: quic::Connection, b: quic::Connection) -> anyho
     Ok(())
 }
 
-async fn exchange_uni(a: quic::Connection, b: quic::Connection) -> anyhow::Result<()> {
-    let a_c = a.clone();
-    let b_c = b.clone();
-
-    // a to p
-    let fut1 = async move {
-        loop {
-            match (a_c.accept_uni().await, b_c.open_uni().await) {
-                (Ok(mut recv), Ok(mut send)) => {
-                    if let Ok(data) = recv.read_to_end(usize::MAX).await {
-                        if send.write_all(&data).await.is_err() || send.finish().await.is_err() {
-                            break error!("send");
-                        }
-                    } else {
-                        break error!("read");
-                    }
-                }
-                (Ok(_), Err(e)) => break error!("b open {e}"),
-                (Err(e), Ok(_)) => break error!("a acpt {e}"),
-                (Err(_), Err(_)) => break error!("err"),
-            }
-        }
-    };
-
-    // p to a
-    let fut2 = async move {
-        loop {
-            match (b.accept_uni().await, a.open_uni().await) {
-                (Ok(mut recv), Ok(mut send)) => {
-                    if let Ok(data) = recv.read_to_end(usize::MAX).await {
-                        if send.write_all(&data).await.is_err() || send.finish().await.is_err() {
-                            break error!("send");
-                        }
-                    } else {
-                        break error!("read");
-                    }
-                }
-                (Ok(_), Err(e)) => break error!("a open {e}"),
-                (Err(e), Ok(_)) => break error!("b acpt {e}"),
-                (Err(_), Err(_)) => break error!("err"),
-            }
-        }
-    };
-    let t1 = tokio::spawn(fut1);
-    let t2 = tokio::spawn(fut2);
-
-    let _ = tokio::join!(t1, t2);
-    info!("数据转发停止");
-    Ok(())
-}
 #[allow(dead_code)]
 async fn transfer_(a: quic::Connection, b: quic::Connection) -> anyhow::Result<()> {
     // a to p
     let fut = async move {
         loop {
-            // match a.accept_bi().await {
-            //     Ok((mut a_s, mut a_r)) => match b.accept_bi().await {
-            //         Ok((mut b_s, mut b_r)) => {
-
-            //         }
-            //         Err(_) => todo!(),
-            //     },
-            //     Err(_) => todo!(),
-            // }
-
             // todo
             match (a.accept_bi().await, b.accept_bi().await) {
                 (Ok((mut a_s, mut a_r)), Ok((mut b_s, mut b_r))) => {

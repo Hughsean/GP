@@ -1,15 +1,65 @@
+use std::{sync::Arc, time::Duration};
+
 use anyhow::anyhow;
-use tracing::{debug, error, info};
 use opencv::{
     highgui,
     prelude::*,
     videoio::{self, VideoCapture},
 };
+use tracing::{debug, error, info};
+#[allow(dead_code)]
 
-pub async fn video(v_conn: quic::Connection, cam: VideoCapture) {
-    let t1 = tokio::spawn(capture(v_conn.clone(), cam));
-    let t2 = tokio::spawn(play(v_conn.clone()));
-    let _ = tokio::join!(t1, t2);
+pub async fn video(v_conn: quic::Connection, mut cam: VideoCapture) {
+    // 打开窗口
+    opencv::highgui::named_window("Video", opencv::highgui::WINDOW_AUTOSIZE)
+        .inspect_err(|e| error!("打开窗口失败 {e}"))
+        .unwrap();
+    // 发送视频
+    let v_conn_c = v_conn.clone();
+
+    let f1 = tokio::spawn(async move {
+        loop {
+            match capture(&mut cam) {
+                Ok(data) => {
+                    if let Ok(mut send) = v_conn_c.open_uni().await {
+                        if send.write_all(&data).await.is_err() || send.finish().await.is_err() {
+                            break error!("send");
+                        } else {
+                            debug!("frame send")
+                        }
+                    } else {
+                        break error!("open");
+                    }
+                }
+                Err(e) => break error!("break {e}"),
+            };
+        }
+        v_conn_c.close(0u8.into(), b"close");
+        Ok::<(), anyhow::Error>(())
+    });
+
+    // 接收视频
+    let f2 = tokio::spawn(async move {
+        loop {
+            match v_conn.accept_uni().await {
+                Ok(mut recv) => {
+                    if let Ok(data) = recv.read_to_end(usize::MAX).await {
+                        if display(data).inspect_err(|e| error!("{e}")).is_err() {
+                            break;
+                        };
+                        debug!("call play");
+                    } else {
+                        break error!("read");
+                    }
+                }
+                Err(e) => break error!("{e}"),
+            }
+        }
+        v_conn.close(0u8.into(), b"close");
+        Ok::<(), anyhow::Error>(())
+    });
+
+    let _ = tokio::join!(f1, f2);
     info!("视频已断线")
 }
 
@@ -33,48 +83,84 @@ pub fn make_cam() -> anyhow::Result<VideoCapture> {
     }
 }
 
-async fn play(v_conn: quic::Connection) -> anyhow::Result<()> {
-    loop {
-        match v_conn.accept_uni().await {
-            Ok(mut recv) => {
-                let buf = recv.read_to_end(usize::MAX).await?;
-                let buf = opencv::types::VectorOfu8::from(buf);
+pub fn display(data: Vec<u8>) -> anyhow::Result<()> {
+    let buf = opencv::types::VectorOfu8::from(data);
 
-                let frame = opencv::imgcodecs::imdecode(&buf, opencv::imgcodecs::IMREAD_COLOR)?;
+    let frame = opencv::imgcodecs::imdecode(&buf, opencv::imgcodecs::IMREAD_COLOR)
+        .inspect_err(|e| error!("decode err {e}"))?;
 
-                if frame.size().unwrap().width > 0 {
-                    highgui::imshow("Video", &frame).unwrap();
-                }
-                debug!("play");
-                let _key = highgui::wait_key(10).unwrap();
-            }
-            Err(e) => break error!("play err: {e}"),
-        }
+    debug!("解码");
+    if frame.size().unwrap().width > 0 {
+        highgui::imshow("Video", &frame).inspect(|_| debug!("播放数据帧"))?;
+        debug!("show")
     }
-    Ok(())
+
+    let key = highgui::wait_key(10)?;
+
+    if key == 27 {
+        Err(anyhow!("break"))
+    } else {
+        Ok(())
+    }
 }
 
-async fn capture(v_conn: quic::Connection, mut cam: VideoCapture) -> anyhow::Result<()> {
+pub fn capture(cam: &mut VideoCapture) -> anyhow::Result<Vec<u8>> {
     let mut frame = Mat::default();
-    loop {
-        cam.read(&mut frame).unwrap();
-        if frame.size().unwrap().width > 0 {
-            match v_conn.open_uni().await {
-                Ok(mut send) => {
-                    // 对图片编码
-                    let params = opencv::types::VectorOfi32::new();
-                    let mut buf = opencv::types::VectorOfu8::new();
 
-                    opencv::imgcodecs::imencode(".jpg", &frame, &mut buf, &params)?;
+    cam.read(&mut frame).inspect_err(|e| error!("{e}"))?;
+    if frame.size()?.width > 0 {
+        let params = opencv::types::VectorOfi32::new();
+        let mut buf = opencv::types::VectorOfu8::new();
 
-                    debug!("图片编码 前{} 后{}", frame.data_bytes()?.len(), buf.len());
+        // 对图片编码
+        opencv::imgcodecs::imencode(".jpg", &frame, &mut buf, &params)
+            .inspect_err(|e| error!("encode {e}"))?;
+        // debug!("编码");
+        std::thread::sleep(Duration::from_millis(10));
 
-                    send.write_all(buf.as_slice()).await?;
-                    send.finish().await?;
-                }
-                Err(e) => break error!("capture err: {e}"),
-            };
-        }
+        Ok(buf.to_vec())
+    } else {
+        Err(anyhow!("Frame size <= 0"))
     }
-    Ok(())
+}
+
+#[tokio::test]
+
+async fn t() {
+    let mut cam = make_cam().unwrap();
+
+    let buf = Arc::new(tokio::sync::Mutex::new(vec![0u8; 10]));
+    let buf_c = buf.clone();
+
+    let t1 = tokio::spawn(async move {
+        loop {
+            if let Ok(data) = capture(&mut cam) {
+                let mut lock = buf_c.lock().await;
+                lock.clear();
+                *lock = data;
+                drop(lock);
+                println!("send")
+            } else {
+                break;
+            };
+            // tokio::time::sleep(Duration::from_millis(millis))
+        }
+    });
+    let t2 = tokio::spawn(async move {
+        opencv::highgui::named_window("Video", opencv::highgui::WINDOW_AUTOSIZE)
+            .inspect_err(|e| error!("打开窗口失败 {e}"))
+            .unwrap();
+        loop {
+            let data: Vec<u8> = buf.lock().await.clone();
+            if display(data).is_err() {
+                break;
+            };
+            println!("play");
+            // let data = capture(&mut cam).unwrap();
+            // *buf.lock().await = data;
+            // tokio::time::sleep(Duration::from_millis(millis))
+        }
+    });
+    let _ = t1.await;
+    let _ = t2.await;
 }

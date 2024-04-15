@@ -1,6 +1,4 @@
-use std::{fmt::Display, fs, net::SocketAddr, sync::Arc, time::Duration};
-
-use quic::IdleTimeout;
+use std::{fmt::Display, fs, net::SocketAddr, sync::Arc};
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub enum Message {
@@ -13,14 +11,20 @@ pub enum Message {
     /// 请求服务器可被呼叫用户列表
     QueryUsers,
 
-    /// 音频帧字节大小, 视频帧字节大小
-    // FrameSize(usize, usize),
-
     /// 请求结束通话
     Close,
 
     /// 服务器回应请求结果
     Result(Info),
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub enum Info {
+    Ok,
+    Err,
+    Wait,
+    Wake,
+    UserList(Vec<String>),
 }
 
 impl Message {
@@ -42,15 +46,6 @@ impl Display for Message {
         };
         f.write_str(&str)
     }
-}
-
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
-pub enum Info {
-    Ok,
-    Err,
-    Wait,
-    Wake,
-    UserList(Vec<String>),
 }
 
 impl Info {
@@ -87,8 +82,8 @@ pub fn make_endpoint(enable: EndpointType) -> anyhow::Result<quic::Endpoint> {
                 .with_single_cert(certs, key)?;
             let mut server_config = quic::ServerConfig::with_crypto(Arc::new(server_crypto));
             let transport_config = Arc::get_mut(&mut server_config.transport).unwrap();
-            transport_config.max_concurrent_uni_streams(u16::MAX.into());
-            // transport_config.max_concurrent_bidi_streams(value)
+            transport_config.max_concurrent_uni_streams(u8::MAX.into());
+            // transport_config.max_concurrent_uni_streams(u16::)
             // transport_config.keep_alive_interval(Some(Duration::from_millis(300)));
             // transport_config.max_idle_timeout(Some(IdleTimeout::try_from(Duration::from_secs(5))?));
             // transport_config.max_idle_timeout(None);
@@ -109,6 +104,22 @@ pub fn make_endpoint(enable: EndpointType) -> anyhow::Result<quic::Endpoint> {
     }
     // let client_config;
     Ok(endpoint)
+}
+
+pub fn data_write_to_buf(buf: &mut [u8], mut data: Vec<u8>) {
+    let len = data.len() as u32;
+    let len_bytes = unsafe { std::mem::transmute::<u32, [u8; 4]>(len) };
+    let mut temp = Vec::from(&len_bytes);
+    temp.append(&mut data);
+    buf[..temp.len()].copy_from_slice(&temp);
+}
+
+pub fn data_read_from_buf(buf: &[u8]) -> Vec<u8> {
+    let mut len = [0u8; 4];
+    len.copy_from_slice(&buf[..4]);
+    let len = unsafe { std::mem::transmute::<[u8; 4], u32>(len) };
+    let len = len as usize;
+    buf[4..len + 4].to_vec()
 }
 
 #[test]

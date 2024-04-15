@@ -1,7 +1,7 @@
 use std::time::Duration;
 
-use log::{debug, error};
 use tokio::time::sleep;
+use tracing::{debug, error};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {

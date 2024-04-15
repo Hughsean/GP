@@ -1,51 +1,78 @@
-use opencv::{highgui, prelude::*, videoio};
+use std::time::Duration;
 
+use anyhow::anyhow;
+use opencv::{
+    highgui,
+    prelude::*,
+    videoio::{self, VideoCapture},
+};
+use tracing::{debug, error};
+pub fn play(data: Vec<u8>) -> anyhow::Result<()> {
+    let buf = opencv::types::VectorOfu8::from(data);
+
+    let frame = opencv::imgcodecs::imdecode(&buf, opencv::imgcodecs::IMREAD_COLOR)
+        .inspect_err(|e| error!("decode err {e}"))?;
+
+    debug!("解码");
+    if frame.size().unwrap().width > 0 {
+        highgui::imshow("Video", &frame).inspect(|_| debug!("播放数据帧"))?;
+        debug!("show")
+    }
+
+    let key = highgui::wait_key(10)?;
+
+    if key == 27 {
+        Err(anyhow!("break"))
+    } else {
+        Ok(())
+    }
+}
+
+pub fn capture(cam: &mut VideoCapture) -> anyhow::Result<Vec<u8>> {
+    let mut frame = Mat::default();
+
+    cam.read(&mut frame).inspect_err(|e| error!("{e}"))?;
+    if frame.size()?.width > 0 {
+        let params = opencv::types::VectorOfi32::new();
+        let mut buf = opencv::types::VectorOfu8::new();
+
+        // 对图片编码
+        opencv::imgcodecs::imencode(".jpg", &frame, &mut buf, &params)
+            .inspect_err(|e| error!("encode {e}"))?;
+        // debug!("编码");
+        std::thread::sleep(Duration::from_millis(10));
+
+        Ok(buf.to_vec())
+    } else {
+        Err(anyhow!("Frame size <= 0"))
+    }
+}
 fn capture_video() {
     // 0 是默认摄像头
+
     let mut cam = videoio::VideoCapture::new(0, videoio::CAP_ANY).unwrap();
-    // let w = cam.get(videoio::CAP_PROP_FRAME_WIDTH).unwrap();
-    // let h = cam.get(videoio::CAP_PROP_FRAME_HEIGHT).unwrap();
-
-    // println!("{}", w * h);
-
-    // println!("fps {}", cam.get(opencv::videoio::CAP_PROP_FPS).unwrap());
-    // cam.set(opencv::videoio::CAP_PROP_FPS, 15f64).unwrap();
-    // cam.set(videoio::CAP_PROP_FRAME_WIDTH, 300f64).unwrap();
-    // cam.set(videoio::CAP_PROP_FRAME_HEIGHT, 200f64).unwrap();
 
     let opened = videoio::VideoCapture::is_opened(&cam).unwrap();
     if !opened {
         println!("Error: something wrong");
         return;
     }
-    let _window = highgui::named_window("Video", highgui::WINDOW_AUTOSIZE).unwrap();
-    let mut n = 0;
+    // let _window =
+    highgui::named_window("Video", highgui::WINDOW_AUTOSIZE).unwrap();
 
     let start = std::time::Instant::now();
 
     loop {
-        let mut frame = Mat::default();
-        cam.read(&mut frame).unwrap();
-
-        if frame.size().unwrap().width > 0 {
-            println!("{}", frame.data_bytes().unwrap().len());
-            let params = opencv::types::VectorOfi32::new();
-            let mut buf = opencv::types::VectorOfu8::new();
-            opencv::imgcodecs::imencode(".jpg", &frame, &mut buf, &params).unwrap();
-            let t = opencv::imgcodecs::imdecode(&buf, opencv::imgcodecs::IMREAD_COLOR).unwrap();
-            assert_eq!(t.data_bytes().unwrap().len(),frame.data_bytes().unwrap().len());
-            println!("{}", buf.len());
-            highgui::imshow("Video", &t).unwrap();
-        }
-
-        let key = highgui::wait_key(10).unwrap();
-        if key == 27 {
-            break;
-        }
+        let data = capture(&mut cam).unwrap();
+        play(data).unwrap();
     }
     println!("{}", (std::time::Instant::now() - start).as_secs_f64())
 }
 
 fn main() {
+    tracing_subscriber::fmt()
+        .with_line_number(true)
+        .with_env_filter("cv=debug")
+        .init();
     capture_video();
 }

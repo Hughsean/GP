@@ -7,9 +7,12 @@ use common::Message;
 use cpal::traits::StreamTrait;
 
 use quic::{Connection, Endpoint};
-use tracing::{debug, info};
+use tracing::{debug, error, info};
 
-use crate::audio::{audio_one_open, audio_uni, make_input_stream, make_output_stream};
+use crate::{
+    audio::{audio_uni, make_input_stream, make_output_stream},
+    video::make_cam,
+};
 
 //
 pub async fn wait(
@@ -21,10 +24,19 @@ pub async fn wait(
     server_name: &str,
     name: &str,
 ) -> Result<Connection> {
-    // let cam = make_cam()?;
-    // info!("摄像头启动");
-    //todo
-    // let _window = opencv::highgui::named_window("Video", opencv::highgui::WINDOW_AUTOSIZE)?;
+    // 视频设备
+    let mut cam = make_cam()?;
+    info!("摄像头启动");
+    // 音频设备
+    let (input_send, input_recv) = std::sync::mpsc::channel::<Vec<f32>>();
+    let (output_send, output_recv) = std::sync::mpsc::channel::<Vec<f32>>();
+
+    let input_recv_a = Arc::new(tokio::sync::Mutex::new(input_recv));
+    let output_send_a = Arc::new(tokio::sync::Mutex::new(output_send.clone()));
+
+    let input_stream = make_input_stream(input_send.clone());
+    let output_stream = make_output_stream(output_recv);
+    info!("音频设备配置成功");
 
     let ctrl_conn = endp.connect(ctrl_addr, server_name)?.await?;
     let (mut send, mut recv) = ctrl_conn.open_bi().await?;
@@ -48,21 +60,24 @@ pub async fn wait(
         if info.is_ok() {
             debug!("请求被接受");
             let a_conn = aendp.connect(data_addr, server_name)?.await?;
-            //todo
             let v_conn = vendp.connect(data_addr, server_name)?.await?;
+
+            // 'test: {
+            //     let mut n = 0;
+            //     loop {
+            //         let (_, mut r) = v_conn.open_bi().await?;
+            //         r.read_to_end(usize::MAX).await?;
+            //         info!("read");
+            //         sleep(std::time::Duration::from_secs(1)).await;
+            //         n += 1;
+            //         if n == 10 {
+            //             break;
+            //         }
+            //     }
+            // }
 
             info!("已创建音视频连接");
 
-            let (input_send, input_recv) = std::sync::mpsc::channel::<Vec<f32>>();
-            let (output_send, output_recv) = std::sync::mpsc::channel::<Vec<f32>>();
-
-            let input_recv_a = Arc::new(tokio::sync::Mutex::new(input_recv));
-            let output_send_a = Arc::new(tokio::sync::Mutex::new(output_send.clone()));
-
-            let input_stream = make_input_stream(input_send.clone());
-            let output_stream = make_output_stream(output_recv);
-
-            info!("音频设备配置成功");
             info!("等待被呼叫");
             loop {
                 let (_, mut wake_recv) = ctrl_conn.accept_bi().await?;
@@ -92,7 +107,9 @@ pub async fn wait(
                 input_recv_a.clone(),
                 output_send_a.clone(),
             ));
-            let _ = tokio::join!(t1);
+
+            let _ = tokio::spawn(crate::video::video(v_conn.clone(), cam)).await;
+            let _ = t1.await;
         } else {
             return Err(anyhow!("请求错误"));
         }
@@ -101,47 +118,62 @@ pub async fn wait(
     Ok(ctrl_conn)
 }
 
-// 被呼叫
-// async fn fun(ctrl_conn: Connection, a_conn: Connection) -> anyhow::Result<()> {
-//     let (input_send, input_recv) = std::sync::mpsc::channel::<Vec<f32>>();
-//     let (output_send, output_recv) = std::sync::mpsc::channel::<Vec<f32>>();
+// async move {
+//     // 打开窗口
+//     opencv::highgui::named_window("Video", opencv::highgui::WINDOW_AUTOSIZE)
+//         .inspect_err(|e| error!("打开窗口失败 {e}"))
+//         .unwrap();
+//     // 发送视频
+//     let v_conn_c = v_conn.clone();
 
-//     let input_recv_a = Arc::new(tokio::sync::Mutex::new(input_recv));
-//     let output_send_a = Arc::new(tokio::sync::Mutex::new(output_send.clone()));
+//     let f1 = tokio::spawn(async move {
+//         loop {
+//             match crate::video::capture(&mut cam) {
+//                 Ok(data) => {
+//                     if let Ok(mut send) = v_conn_c.open_uni().await {
+//                         if send.write_all(&data).await.is_err()
+//                             || send.finish().await.is_err()
+//                         {
+//                             break error!("send");
+//                         } else {
+//                             debug!("frame send")
+//                         }
+//                     } else {
+//                         break error!("open");
+//                     }
+//                 }
+//                 Err(e) => break error!("break {e}"),
+//             };
+//         }
+//         v_conn_c.close(0u8.into(), b"close");
+//         Ok::<(), anyhow::Error>(())
+//     });
 
-//     let input_stream = make_input_stream(input_send.clone());
-//     let output_stream = make_output_stream(output_recv);
-
-//     info!("音频设备配置成功");
-//     info!("等待被呼叫");
-//     loop {
-//         let (_, mut wake_recv) = ctrl_conn.accept_bi().await?;
-
-//         let data_recv = wake_recv.read_to_end(usize::MAX).await?;
-//         let msg: common::Message = serde_json::from_slice(&data_recv).context("信息解析错误")?;
-//         match msg {
-//             Message::Result(common::Info::Wait) => {
-//                 debug!("收到服务器等待保活信息");
-//                 continue;
-//             }
-//             Message::Result(common::Info::Wake) => break,
-//             _ => {
-//                 return Err(anyhow!("错误信息"));
+//     // 接收视频
+//     let f2 = tokio::spawn(async move {
+//         loop {
+//             match v_conn.accept_uni().await {
+//                 Ok(mut recv) => {
+//                     if let Ok(data) = recv.read_to_end(usize::MAX).await {
+//                         if crate::video::display(data)
+//                             .inspect_err(|e| error!("{e}"))
+//                             .is_err()
+//                         {
+//                             break;
+//                         };
+//                         debug!("call play");
+//                     } else {
+//                         break error!("read");
+//                     }
+//                 }
+//                 Err(e) => break error!("{e}"),
 //             }
 //         }
-//     }
+//         v_conn.close(0u8.into(), b"close");
+//         Ok::<(), anyhow::Error>(())
+//     });
 
-//     info!("被服务器唤醒");
-//     input_stream.play().unwrap();
-//     output_stream.play().unwrap();
-//     info!("音频设备启动");
-
-//     let t1 = tokio::spawn(audio(
-//         a_conn.clone(),
-//         input_recv_a.clone(),
-//         output_send_a.clone(),
-//     ));
-//     let _ = tokio::join!(t1);
-
-//     Ok(())
+//     let _ = tokio::join!(f1, f2);
+//     info!("视频已断线")
 // }
+// .await;

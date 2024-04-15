@@ -1,13 +1,13 @@
 use crate::{
-    audio::{audio_one_open, audio_uni, make_input_stream, make_output_stream, vf32_to_vu8, vu8_to_vf32},
-    video::{make_cam, video},
+    audio::{audio_uni, make_input_stream, make_output_stream},
+    video::make_cam,
 };
 use anyhow::anyhow;
-use cpal::{traits::StreamTrait, Stream};
-use tracing::{debug, error, info};
-use opencv::videoio::VideoCapture;
-use quic::{Connection, Endpoint};
+use cpal::traits::StreamTrait;
+
+use quic::Endpoint;
 use std::{net::SocketAddr, sync::Arc};
+use tracing::{debug, error, info};
 
 pub async fn call(
     endp: Endpoint,
@@ -18,10 +18,20 @@ pub async fn call(
     server_name: &str,
     name: &str,
 ) -> anyhow::Result<()> {
-    // 音频处理
+    //---------------------
+    let mut cam = make_cam()?;
+    info!("摄像头启动");
+    //---------------------
+    let (input_send, input_recv) = std::sync::mpsc::channel::<Vec<f32>>();
+    let (output_send, output_recv) = std::sync::mpsc::channel::<Vec<f32>>();
 
-    //todo
-    // let _window = opencv::highgui::named_window("Video", opencv::highgui::WINDOW_AUTOSIZE)?;
+    let input_recv_a = Arc::new(tokio::sync::Mutex::new(input_recv));
+    let output_send_a = Arc::new(tokio::sync::Mutex::new(output_send.clone()));
+
+    let input_stream = make_input_stream(input_send.clone());
+    let output_stream = make_output_stream(output_recv);
+    info!("音频设备配置成功");
+    //---------------------
 
     let ctrl_conn = endp.connect(ctrl_addr, server_name)?;
     let ctrl_conn = ctrl_conn.await?;
@@ -45,15 +55,6 @@ pub async fn call(
         let v_conn = vendp.connect(data_addr, server_name)?.await?;
         info!("已建立音视频连接");
 
-        let (input_send, input_recv) = std::sync::mpsc::channel::<Vec<f32>>();
-        let (output_send, output_recv) = std::sync::mpsc::channel::<Vec<f32>>();
-
-        let input_recv_a = Arc::new(tokio::sync::Mutex::new(input_recv));
-        let output_send_a = Arc::new(tokio::sync::Mutex::new(output_send.clone()));
-
-        let input_stream = make_input_stream(input_send.clone());
-        let output_stream = make_output_stream(output_recv);
-        info!("音频设备配置成功");
         // 音频
         output_stream.play().unwrap();
         input_stream.play().unwrap();
@@ -65,7 +66,10 @@ pub async fn call(
             output_send_a.clone(),
         ));
         // 视频
-        let _ = tokio::join!(t1);
+  
+        let _ = tokio::spawn(crate::video::video(v_conn.clone(), cam)).await;
+        let _ = t1.await;
+
         info!("呼叫结束");
     } else {
         return Err(anyhow!("请求错误"));
