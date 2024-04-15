@@ -62,6 +62,10 @@ pub async fn call(
         // 创建数据连接
         let a_conn = aendp.connect(data_addr, server_name)?.await?;
         let v_conn = vendp.connect(data_addr, server_name)?.await?;
+
+        input_stream.play()?;
+        output_stream.play()?;
+
         info!("已建立音视频连接");
         let t1 = std::thread::spawn(move || {
             let _ = video::capture_c(&mut cam, vinput_send.clone());

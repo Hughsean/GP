@@ -217,27 +217,13 @@ async fn exchange_uni(
 ) -> anyhow::Result<()> {
     let a_c = a.clone();
     let b_c = b.clone();
+    const DISPALY_N: u64 = 200;
 
     // a to b
     let fut1 = async move {
-        let mut a2b = 0u32;
+        let mut a2b = 0u64;
 
         loop {
-            // match (a_c.accept_uni().await, b_c.open_uni().await) {
-            //     (Ok(mut recv), Ok(mut send)) => {
-            //         if let Ok(data) = recv.read_to_end(usize::MAX).await {
-            //             if send.write_all(&data).await.is_err() || send.finish().await.is_err() {
-            //                 break error!("send to b");
-            //             }
-            //         } else {
-            //             break error!("read from a");
-            //         }
-            //     }
-            //     (Ok(_), Err(e)) => break error!("b open {e}"),
-            //     (Err(e), Ok(_)) => break error!("a acpt {e}"),
-            //     (Err(_), Err(_)) => break error!("err"),
-            // }
-
             match a_c.accept_uni().await {
                 Ok(mut recv) => match b_c.open_uni().await {
                     Ok(mut send) => {
@@ -246,7 +232,7 @@ async fn exchange_uni(
                             {
                                 break error!("send to b");
                             } else {
-                                if a2b % 40 == 0 {
+                                if a2b % DISPALY_N == 0 {
                                     debug!("转发包 {name}");
                                 }
                                 a2b += 1;
@@ -262,26 +248,11 @@ async fn exchange_uni(
         }
     };
 
-    // p to a
+    // b to a
     let fut2 = async move {
-        let mut b2a = 0u32;
+        let mut b2a = 0u64;
 
         loop {
-            // match (b.accept_uni().await, a.open_uni().await) {
-            //     (Ok(mut recv), Ok(mut send)) => {
-            //         if let Ok(data) = recv.read_to_end(usize::MAX).await {
-            //             if send.write_all(&data).await.is_err() || send.finish().await.is_err() {
-            //                 break error!("send to a");
-            //             }
-            //         } else {
-            //             break error!("read from b");
-            //         }
-            //     }
-            //     (Ok(_), Err(e)) => break error!("a open {e}"),
-            //     (Err(e), Ok(_)) => break error!("b acpt {e}"),
-            //     (Err(_), Err(_)) => break error!("err"),
-            // }
-
             match b.accept_uni().await {
                 Ok(mut recv) => match a.open_uni().await {
                     Ok(mut send) => {
@@ -290,7 +261,7 @@ async fn exchange_uni(
                             {
                                 break error!("send to a");
                             } else {
-                                if b2a % 40 == 0 {
+                                if b2a % DISPALY_N == 0 {
                                     debug!("转发包 {name}");
                                 }
                                 b2a += 1;
@@ -314,6 +285,7 @@ async fn exchange_uni(
     Ok(())
 }
 
+#[allow(dead_code)]
 async fn exchange_bi(a: quic::Connection, b: quic::Connection) -> anyhow::Result<()> {
     loop {
         match a.accept_bi().await {
@@ -357,6 +329,7 @@ async fn exchange_bi(a: quic::Connection, b: quic::Connection) -> anyhow::Result
     Ok(())
 }
 
+#[allow(dead_code)]
 async fn exchange_uni_channel(a: quic::Connection, b: quic::Connection) -> anyhow::Result<()> {
     let (abs, mut abr) = tokio::sync::mpsc::channel::<Vec<u8>>(1024 * 200);
     let (bas, mut bar) = tokio::sync::mpsc::channel::<Vec<u8>>(1024 * 200);

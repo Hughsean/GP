@@ -8,6 +8,8 @@ use opencv::{
 };
 use tracing::{debug, error, info};
 
+const DELAY: u16 = 50;
+
 pub fn display_c(recv: std::sync::mpsc::Receiver<Vec<u8>>) -> anyhow::Result<()> {
     loop {
         match recv.recv() {
@@ -17,19 +19,17 @@ pub fn display_c(recv: std::sync::mpsc::Receiver<Vec<u8>>) -> anyhow::Result<()>
                 let frame = opencv::imgcodecs::imdecode(&buf, opencv::imgcodecs::IMREAD_COLOR)
                     .inspect_err(|e| error!("decode err {e}"))?;
 
-                debug!("解码");
                 if frame.size().unwrap().width > 0 {
                     highgui::imshow("Video", &frame).inspect(|_| debug!("播放数据帧"))?;
-                    debug!("show")
                 }
 
-                let key = highgui::wait_key(10)?;
+                let key = highgui::wait_key(DELAY as i32)?;
 
                 if key == 27 {
                     break;
                 }
             }
-            Err(e) => return Err(anyhow!("e")),
+            Err(e) => return Err(anyhow!("{e}")),
         }
     }
     Ok(())
@@ -51,7 +51,7 @@ pub fn capture_c(
                 .inspect_err(|e| error!("encode {e}"))?;
             send.send(buf.to_vec())?;
             // debug!("编码");
-            std::thread::sleep(Duration::from_millis(10));
+            std::thread::sleep(Duration::from_millis(DELAY as u64));
         }
     }
 }
