@@ -56,6 +56,7 @@ pub fn capture_c(
     }
 }
 
+
 pub async fn video_chanel(
     v_conn: quic::Connection,
     input_recv: Arc<tokio::sync::Mutex<std::sync::mpsc::Receiver<Vec<u8>>>>,
@@ -111,6 +112,7 @@ pub async fn video_chanel(
     info!("音频结束");
 }
 
+#[allow(dead_code)]
 pub async fn video(v_conn: quic::Connection, mut cam: VideoCapture) {
     // 打开窗口
     opencv::highgui::named_window("Video", opencv::highgui::WINDOW_AUTOSIZE)

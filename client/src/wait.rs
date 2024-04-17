@@ -7,7 +7,7 @@ use common::Message;
 use cpal::traits::StreamTrait;
 
 use quic::{Connection, Endpoint};
-use tracing::{debug, error, info};
+use tracing::{debug, info};
 
 use crate::{
     audio::{audio_uni, make_input_stream, make_output_stream},
@@ -61,26 +61,12 @@ pub async fn wait(
 
     debug!("获取请求结果");
 
-    if let Message::Result(info) = result {
+    if let Message::Server(info) = result {
         // 创建音视频连接
         if info.is_ok() {
             debug!("请求被接受");
             let a_conn = aendp.connect(data_addr, server_name)?.await?;
             let v_conn = vendp.connect(data_addr, server_name)?.await?;
-
-            // 'test: {
-            //     let mut n = 0;
-            //     loop {
-            //         let (_, mut r) = v_conn.open_bi().await?;
-            //         r.read_to_end(usize::MAX).await?;
-            //         info!("read");
-            //         sleep(std::time::Duration::from_secs(1)).await;
-            //         n += 1;
-            //         if n == 10 {
-            //             break;
-            //         }
-            //     }
-            // }
 
             info!("已创建音视频连接");
 
@@ -92,11 +78,11 @@ pub async fn wait(
                 let msg: common::Message =
                     serde_json::from_slice(&data_recv).context("信息解析错误")?;
                 match msg {
-                    Message::Result(common::Info::Wait) => {
+                    Message::Server(common::Response::Wait) => {
                         debug!("收到服务器等待保活信息");
                         continue;
                     }
-                    Message::Result(common::Info::Wake) => break,
+                    Message::Server(common::Response::Wake) => break,
                     _ => {
                         return Err(anyhow!("错误信息"));
                     }
