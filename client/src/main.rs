@@ -1,3 +1,4 @@
+use common::endpoint_config::{make_endpoint, EndpointType};
 use std::{fs, net::SocketAddr, sync::Arc};
 
 use call::call;
@@ -35,10 +36,8 @@ async fn main() {
         }
     };
 
-    let aendp =
-        common::make_endpoint(common::EndpointType::Client("0.0.0.0:0".parse().unwrap())).unwrap();
-    let vendp =
-        common::make_endpoint(common::EndpointType::Client("0.0.0.0:0".parse().unwrap())).unwrap();
+    let aendp = make_endpoint(EndpointType::Client("0.0.0.0:0".parse().unwrap())).unwrap();
+    let vendp = make_endpoint(EndpointType::Client("0.0.0.0:0".parse().unwrap())).unwrap();
 
     match cli.command {
         command::Commands::Wait => {

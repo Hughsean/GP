@@ -6,6 +6,7 @@ use quic::{Connection, Endpoint, SendStream};
 use tracing::{debug, error, info, warn};
 
 use crate::{Client, ClientMap};
+use common::message::{Res, Message};
 
 pub async fn handle_connection(
     conn: quic::Connecting,
@@ -29,7 +30,7 @@ pub async fn handle_connection(
 
     // 读取第一个请求
     match recv.read_to_end(usize::MAX).await {
-        Ok(data) => match serde_json::from_slice::<common::Message>(&data) {
+        Ok(data) => match serde_json::from_slice::<Message>(&data) {
             Ok(msg) => {
                 //处理请求
                 info!("请求: {}", msg);
@@ -47,7 +48,7 @@ pub async fn handle_connection(
 
 #[allow(dead_code)]
 async fn handle_req(
-    msg: common::Message,
+    msg: Message,
     clients: ClientMap,
     mut send: SendStream,
     data_endp: Endpoint,
@@ -55,18 +56,18 @@ async fn handle_req(
 ) -> anyhow::Result<()> {
     match msg {
         // 挂线, 等待接听
-        common::Message::Wait(name) => {
+        Message::Wait(name) => {
             let mut clients_lock = clients.lock().await;
 
             if clients_lock.contains_key(&name) {
                 // 用户名重复
                 debug!("用户名({})重复", name);
 
-                let msg = common::Message::Result(common::Info::Err);
+                let msg = Message::Response(Res::Err);
                 send.write_all(&msg.to_vec_u8()).await.unwrap();
                 send.finish().await?;
             } else {
-                let msg = common::Message::Result(common::Info::Ok);
+                let msg = Message::Response(Res::Ok);
                 send.write_all(&msg.to_vec_u8()).await.unwrap();
                 send.finish().await?;
 
@@ -100,7 +101,7 @@ async fn handle_req(
                 // 客户端保活
                 tokio::spawn(async move {
                     debug!("保活线程创建");
-                    let wait = common::Message::Result(common::Info::Wait);
+                    let wait = Message::Response(Res::Wait);
                     loop {
                         let ctrl_lock = ctrl_c.lock().await;
                         if ctrl_lock.is_none() {
@@ -134,7 +135,7 @@ async fn handle_req(
                 info!("WAIT 请求处理完成")
             }
         }
-        common::Message::Call(name) => {
+        Message::Call(name) => {
             let mut clients_lock = clients.lock().await;
 
             debug!("获取锁");
@@ -143,9 +144,9 @@ async fn handle_req(
             let contains = clients_lock.contains_key(&name);
             //查看是否存在被呼叫用户
             if !contains {
-                msg = common::Message::Result(common::Info::Err);
+                msg = Message::Response(Res::Err);
             } else {
-                msg = common::Message::Result(common::Info::Ok);
+                msg = Message::Response(Res::Ok);
             }
 
             send.write_all(&msg.to_vec_u8()).await?;
@@ -180,14 +181,14 @@ async fn handle_req(
             handle_call(c_active, c_passive).await?;
         }
         // 请求等待呼叫用户列表
-        common::Message::QueryUsers => {
+        Message::QueryUsers => {
             let clients_lock = clients.lock().await;
             let mut v = vec![];
             for e in clients_lock.keys() {
                 v.push(e.clone())
             }
 
-            let msg = common::Message::Result(common::Info::UserList(v));
+            let msg = Message::Response(Res::UserList(v));
             send.write_all(&msg.to_vec_u8()).await.unwrap();
         }
         _ => return Err(anyhow!("时序错误")),
@@ -197,7 +198,7 @@ async fn handle_req(
 
 pub async fn handle_call(active: Client, passive: Client) -> anyhow::Result<()> {
     // 唤醒被呼叫者
-    let msg = common::Message::Result(common::Info::Wake);
+    let msg = Message::Response(Res::Wake);
     let (mut wake_sent, _) = passive.ctrl_conn.open_bi().await?;
     wake_sent.write_all(&msg.to_vec_u8()).await?;
     wake_sent.finish().await?;

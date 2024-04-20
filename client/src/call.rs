@@ -8,6 +8,7 @@ use cpal::traits::StreamTrait;
 use quic::Endpoint;
 use std::{net::SocketAddr, sync::Arc};
 use tracing::{debug, info};
+use common::message::{Res, Message};
 
 pub async fn call(
     endp: Endpoint,
@@ -44,7 +45,7 @@ pub async fn call(
     debug!("建立 ctrl_conn");
 
     let (mut send, mut recv) = ctrl_conn.open_bi().await?;
-    let msg = common::Message::Call(name.into());
+    let msg = Message::Call(name.into());
 
     // 第一个请求
     send.write_all(&msg.to_vec_u8()).await?;
@@ -52,10 +53,10 @@ pub async fn call(
     debug!("发送请求");
 
     let result = recv.read_to_end(usize::MAX).await?;
-    let result: common::Message = serde_json::from_slice(&result)?;
+    let result: Message = serde_json::from_slice(&result)?;
     debug!("读取请求结果");
 
-    if let common::Message::Result(common::Info::Ok) = result {
+    if let Message::Response(Res::Ok) = result {
         // 创建数据连接
         let a_conn = aendp.connect(data_addr, server_name)?.await?;
         let v_conn = vendp.connect(data_addr, server_name)?.await?;

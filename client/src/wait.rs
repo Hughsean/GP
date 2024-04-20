@@ -2,7 +2,7 @@ use std::{net::SocketAddr, sync::Arc};
 
 use anyhow::{anyhow, Context, Result};
 
-use common::Message;
+use common::message::{Message, Res};
 
 use cpal::traits::StreamTrait;
 
@@ -61,7 +61,7 @@ pub async fn wait(
 
     debug!("获取请求结果");
 
-    if let Message::Result(info) = result {
+    if let Message::Response(info) = result {
         // 创建音视频连接
         if info.is_ok() {
             debug!("请求被接受");
@@ -89,14 +89,13 @@ pub async fn wait(
                 let (_, mut wake_recv) = ctrl_conn.accept_bi().await?;
 
                 let data_recv = wake_recv.read_to_end(usize::MAX).await?;
-                let msg: common::Message =
-                    serde_json::from_slice(&data_recv).context("信息解析错误")?;
+                let msg: Message = serde_json::from_slice(&data_recv).context("信息解析错误")?;
                 match msg {
-                    Message::Result(common::Info::Wait) => {
+                    Message::Response(Res::Wait) => {
                         debug!("收到服务器等待保活信息");
                         continue;
                     }
-                    Message::Result(common::Info::Wake) => break,
+                    Message::Response(Res::Wake) => break,
                     _ => {
                         return Err(anyhow!("错误信息"));
                     }

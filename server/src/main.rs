@@ -1,3 +1,4 @@
+use common::endpoint_config::{make_endpoint, EndpointType};
 use config::Config;
 use tracing::{info, warn};
 
@@ -52,8 +53,8 @@ async fn run(_config: Config) -> anyhow::Result<()> {
     let ctrl_listen = "0.0.0.0:12345".parse::<SocketAddr>()?;
     let data_listen = "0.0.0.0:12346".parse::<SocketAddr>()?;
 
-    let ctrl_endp = common::make_endpoint(common::EndpointType::Server(ctrl_listen))?;
-    let data_endp = common::make_endpoint(common::EndpointType::Server(data_listen))?;
+    let ctrl_endp = make_endpoint(EndpointType::Server(ctrl_listen))?;
+    let data_endp = make_endpoint(EndpointType::Server(data_listen))?;
 
     info!("监听 {}", ctrl_endp.local_addr()?);
     //

@@ -1,13 +1,13 @@
 use std::time::Duration;
 
+use common::endpoint_config::{make_endpoint, EndpointType};
 use tokio::time::sleep;
 use tracing::{debug, error};
-
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let sendp = common::make_endpoint(common::EndpointType::Server("0.0.0.0:12345".parse()?))?;
-    let cendpa = common::make_endpoint(common::EndpointType::Client("0.0.0.0:0".parse()?))?;
-    let cendpb = common::make_endpoint(common::EndpointType::Client("0.0.0.0:0".parse()?))?;
+    let sendp = make_endpoint(EndpointType::Server("0.0.0.0:12345".parse()?))?;
+    let cendpa = make_endpoint(EndpointType::Client("0.0.0.0:0".parse()?))?;
+    let cendpb = make_endpoint(EndpointType::Client("0.0.0.0:0".parse()?))?;
     let _buf = [0u8; 2 * 1024];
 
     let t = tokio::spawn(async move {
@@ -29,9 +29,9 @@ async fn main() -> anyhow::Result<()> {
         .unwrap()
         .await?;
     let _caaa = cendpa
-    .connect("127.0.0.1:12345".parse()?, "localhost")
-    .unwrap()
-    .await?;
+        .connect("127.0.0.1:12345".parse()?, "localhost")
+        .unwrap()
+        .await?;
     let cb = cendpb
         .connect("127.0.0.1:12345".parse()?, "localhost")
         .unwrap()
