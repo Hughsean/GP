@@ -8,12 +8,12 @@ async fn main() -> anyhow::Result<()> {
     let sendp = common::make_endpoint(common::EndpointType::Server("0.0.0.0:12345".parse()?))?;
     let cendpa = common::make_endpoint(common::EndpointType::Client("0.0.0.0:0".parse()?))?;
     let cendpb = common::make_endpoint(common::EndpointType::Client("0.0.0.0:0".parse()?))?;
-    let buf = [0u8; 2 * 1024];
+    let _buf = [0u8; 2 * 1024];
 
     let t = tokio::spawn(async move {
         let ca = sendp.accept().await.unwrap().await.unwrap();
-        let caa = sendp.accept().await.unwrap().await.unwrap();
-        let caa = sendp.accept().await.unwrap().await.unwrap();
+        let _caa = sendp.accept().await.unwrap().await.unwrap();
+        let _caa = sendp.accept().await.unwrap().await.unwrap();
 
         let cb = sendp.accept().await.unwrap().await.unwrap();
         exchange(ca, cb).await.unwrap();
@@ -24,11 +24,11 @@ async fn main() -> anyhow::Result<()> {
         .unwrap()
         .await?;
 
-    let caa = cendpa
+    let _caa = cendpa
         .connect("127.0.0.1:12345".parse()?, "localhost")
         .unwrap()
         .await?;
-    let caaa = cendpa
+    let _caaa = cendpa
     .connect("127.0.0.1:12345".parse()?, "localhost")
     .unwrap()
     .await?;

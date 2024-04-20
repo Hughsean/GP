@@ -56,7 +56,6 @@ pub fn capture_c(
     }
 }
 
-
 pub async fn video_chanel(
     v_conn: quic::Connection,
     input_recv: Arc<tokio::sync::Mutex<std::sync::mpsc::Receiver<Vec<u8>>>>,
@@ -112,8 +111,7 @@ pub async fn video_chanel(
     info!("音频结束");
 }
 
-#[allow(dead_code)]
-pub async fn video(v_conn: quic::Connection, mut cam: VideoCapture) {
+pub async fn _video(v_conn: quic::Connection, mut cam: VideoCapture) {
     // 打开窗口
     opencv::highgui::named_window("Video", opencv::highgui::WINDOW_AUTOSIZE)
         .inspect_err(|e| error!("打开窗口失败 {e}"))
@@ -198,6 +196,7 @@ pub fn make_cam() -> anyhow::Result<VideoCapture> {
     }
 }
 
+#[allow(dead_code)]
 pub fn display(data: Vec<u8>) -> anyhow::Result<()> {
     let buf = opencv::types::VectorOfu8::from(data);
 
@@ -219,6 +218,7 @@ pub fn display(data: Vec<u8>) -> anyhow::Result<()> {
     }
 }
 
+#[allow(dead_code)]
 pub fn capture(cam: &mut VideoCapture) -> anyhow::Result<Vec<u8>> {
     let mut frame = Mat::default();
 

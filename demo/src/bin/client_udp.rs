@@ -1,4 +1,3 @@
-use anyhow::anyhow;
 fn main() {
     if let Err(e) = run() {
         println!("{}", e.to_string())

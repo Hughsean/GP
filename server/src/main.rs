@@ -11,12 +11,20 @@ use std::{collections::HashMap, net::SocketAddr, sync::Arc};
 
 #[derive(Debug, Clone)]
 struct Client {
-    /// 控制连接, 用于交换状态
+    /// 备用连接
     pub ctrl_conn: quic::Connection,
     /// 音频连接
     pub a_conn: quic::Connection,
+    // pub a_conn_send: quic::Connection,
     /// 视频连接
     pub v_conn: quic::Connection,
+    // pub v_conn_send: quic::Connection,
+    // /// 音频连接
+    // pub a_conn_recv: quic::Connection,
+    // pub a_conn_send: quic::Connection,
+    // /// 视频连接
+    // pub v_conn_recv: quic::Connection,
+    // pub v_conn_send: quic::Connection,
     ///
     pub ctrl: Option<Arc<tokio::sync::Mutex<Option<quic::Connection>>>>,
 }
@@ -63,4 +71,3 @@ async fn run(_config: Config) -> anyhow::Result<()> {
 
 mod config;
 mod handler;
-mod exchange;

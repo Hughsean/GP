@@ -1,7 +1,5 @@
 // use apps::common;
-use std::{fs, net::SocketAddr, rc::Rc, sync::Arc, time::Duration};
-
-use tokio::time::sleep;
+use std::{fs, net::SocketAddr, sync::Arc};
 
 fn main() {
     let t = run();
@@ -30,7 +28,6 @@ async fn run() -> anyhow::Result<()> {
     let transport_config = Arc::get_mut(&mut server_config.transport).unwrap();
     transport_config.max_concurrent_uni_streams(0_u8.into());
 
-    
     let endpoint = quic::Endpoint::server(server_config, listen)?;
 
     while let Some(conn) = endpoint.accept().await {

@@ -60,13 +60,13 @@ fn capture_video() {
     // let _window =
     highgui::named_window("Video", highgui::WINDOW_AUTOSIZE).unwrap();
 
-    let start = std::time::Instant::now();
+    // let start = std::time::Instant::now();
+    // println!("{}", (std::time::Instant::now() - start).as_secs_f64());
 
     loop {
         let data = capture(&mut cam).unwrap();
         play(data).unwrap();
     }
-    println!("{}", (std::time::Instant::now() - start).as_secs_f64())
 }
 
 fn main() {

@@ -4,26 +4,26 @@ use std::{fmt::Display, fs, net::SocketAddr, sync::Arc};
 pub enum Message {
     /// 请求在服务器挂起等待
     Wait(String),
+
     /// 请求呼叫
     Call(String),
+
     /// 请求服务器可被呼叫用户列表
     QueryUsers,
+
     /// 请求结束通话
     Close,
+
     /// 服务器回应请求结果
-    Server(Response),
+    Result(Info),
 }
+
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
-pub enum Response {
-    /// 请求成功
+pub enum Info {
     Ok,
-    /// 请求失败
     Err,
-    /// 等待被呼叫
     Wait,
-    /// 唤醒, 接收呼叫
     Wake,
-    /// 等待用户列表
     UserList(Vec<String>),
 }
 
@@ -42,16 +42,16 @@ impl Display for Message {
             Message::QueryUsers => "查询等待列表".into(),
             // Message::FrameSize(a, v) => format!("音频帧字节大小({a}) 视频帧字节大小({v})"),
             Message::Close => "关闭通信".into(),
-            Message::Server(_) => "Result".into(),
+            Message::Result(_) => "Result".into(),
         };
         f.write_str(&str)
     }
 }
 
-impl Response {
+impl Info {
     pub fn is_ok(&self) -> bool {
         match self {
-            Response::Ok => true,
+            Info::Ok => true,
             _ => false,
         }
     }

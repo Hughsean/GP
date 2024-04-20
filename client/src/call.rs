@@ -43,10 +43,10 @@ pub async fn call(
     let ctrl_conn = ctrl_conn.await?;
     debug!("建立 ctrl_conn");
 
-    // 建立请求连接
     let (mut send, mut recv) = ctrl_conn.open_bi().await?;
-    // 第一个请求
     let msg = common::Message::Call(name.into());
+
+    // 第一个请求
     send.write_all(&msg.to_vec_u8()).await?;
     send.finish().await?;
     debug!("发送请求");
@@ -55,7 +55,7 @@ pub async fn call(
     let result: common::Message = serde_json::from_slice(&result)?;
     debug!("读取请求结果");
 
-    if let common::Message::Server(common::Response::Ok) = result {
+    if let common::Message::Result(common::Info::Ok) = result {
         // 创建数据连接
         let a_conn = aendp.connect(data_addr, server_name)?.await?;
         let v_conn = vendp.connect(data_addr, server_name)?.await?;
@@ -86,6 +86,20 @@ pub async fn call(
         let _ = t3.await;
         let _ = t1.join();
         let _ = t2.join();
+        // // 音频
+        // output_stream.play().unwrap();
+        // input_stream.play().unwrap();
+        // info!("音频设备启动");
+
+        // let t1 = tokio::spawn(audio_uni(
+        //     a_conn.clone(),
+        //     ainput_recv_a.clone(),
+        //     aoutput_send_a.clone(),
+        // ));
+        // // 视频
+
+        // let _ = tokio::spawn(crate::video::video(v_conn.clone(), cam)).await;
+        // let _ = t1.await;
 
         info!("呼叫结束");
     } else {
@@ -95,6 +109,33 @@ pub async fn call(
     Ok(())
 }
 
+// async fn _fun(a_conn: Connection) -> anyhow::Result<()> {
+//     // 启动设备
+
+//     let (input_send, input_recv) = std::sync::mpsc::channel::<Vec<f32>>();
+//     let (output_send, output_recv) = std::sync::mpsc::channel::<Vec<f32>>();
+
+//     let input_recv_a = Arc::new(tokio::sync::Mutex::new(input_recv));
+//     let output_send_a = Arc::new(tokio::sync::Mutex::new(output_send.clone()));
+
+//     let input_stream = make_input_stream(input_send.clone());
+//     let output_stream = make_output_stream(output_recv);
+//     info!("音频设备配置成功");
+//     // 音频
+//     output_stream.play().unwrap();
+//     input_stream.play().unwrap();
+//     info!("音频设备启动");
+
+//     let t1 = tokio::spawn(audio(
+//         a_conn.clone(),
+//         input_recv_a.clone(),
+//         output_send_a.clone(),
+//     ));
+//     // 视频
+//     let _ = tokio::join!(t1);
+//     info!("呼叫结束");
+//     Ok(())
+// }
 
 #[test]
 fn f() {
