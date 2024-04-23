@@ -1,5 +1,6 @@
 use common::endpoint_config::{make_endpoint, EndpointType};
-use std::{fs, net::SocketAddr, sync::Arc};
+use cpal::Stream;
+use std::{fs, net::SocketAddr, sync::Arc, time::Duration};
 
 use call::call;
 use clap::Parser;
@@ -8,9 +9,14 @@ use command::Cli;
 use quic::Endpoint;
 use tracing::{error, info};
 
-struct App {
+pub struct Audio {
+    pub play: Stream,
+    pub record: Stream,
+}
+
+pub struct App {
     /// 摄像头
-    pub cam: opencv::videoio::VideoCapture,
+    pub cam: Arc<opencv::videoio::VideoCapture>,
     /// 音频传入
     pub a_conn_in: quic::Connection,
     /// 音频传出
@@ -30,9 +36,23 @@ fn f() {
         .build()
         .unwrap();
 
-    rt.block_on(async {
-        println!("p");
-        eprintln!("ep")
+    let exit = Arc::new(tokio::sync::RwLock::new(false));
+
+    let exitc = exit.clone();
+    rt.spawn(async move {
+        tokio::time::sleep(Duration::from_secs(5)).await;
+        let mut t = exitc.write().await;
+        *t = true;
+    });
+
+    rt.block_on(async move {
+        loop {
+            if *exit.read().await {
+                break;
+            }
+            println!("read");
+            tokio::time::sleep(Duration::from_millis(300)).await;
+        }
     });
 }
 
