@@ -6,8 +6,8 @@
     "distDir": "../dist"
   },
   "package": {
-    "productName": "tauri-app",
-    "version": "0.0.0"
+    "productName": "App",
+    "version": "0.1.0"
   },
   "tauri": {
     "allowlist": {
@@ -26,12 +26,8 @@
         "center": true
       }
     ],
-    "security": {
-      "csp": null
-    },
     "bundle": {
       "active": false,
-      "targets": "all",
       "identifier": "cn.fxs.dev",
       "icon": [
         "icons/32x32.png",

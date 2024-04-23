@@ -27,6 +27,7 @@ import { ref } from "vue";
 import { invoke } from "@tauri-apps/api/tauri";
 import { ElLoading } from 'element-plus'
 import { ElMessage } from 'element-plus'
+import router from "../router";
 
 const greetMsg = ref("");
 const name = ref("");
@@ -51,7 +52,8 @@ async function fun() {
     ElMessage({
       message: '初始化成功',
       type: 'success',
-    })
+    });
+    router.replace("/Do")
   }).catch((e) => {
     ElMessage.error('错误: ' + e)
   }).finally(() => {

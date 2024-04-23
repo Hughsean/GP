@@ -1,6 +1,6 @@
 use common::endpoint_config::{make_endpoint, EndpointType};
 use cpal::Stream;
-use std::{fs, net::SocketAddr, sync::Arc, time::Duration};
+use std::{fs, net::SocketAddr, sync::Arc};
 
 use call::call;
 use clap::Parser;
@@ -40,7 +40,7 @@ fn f() {
 
     let exitc = exit.clone();
     rt.spawn(async move {
-        tokio::time::sleep(Duration::from_secs(5)).await;
+        tokio::time::sleep(std::time::Duration::from_secs(5)).await;
         let mut t = exitc.write().await;
         *t = true;
     });
@@ -51,7 +51,7 @@ fn f() {
                 break;
             }
             println!("read");
-            tokio::time::sleep(Duration::from_millis(300)).await;
+            tokio::time::sleep(std::time::Duration::from_millis(300)).await;
         }
     });
 }

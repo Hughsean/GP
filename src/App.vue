@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import Init from './components/Init.vue';
+// import Init from './components/Init.vue';
 </script>
 
 <template>
   <div class="container">
-
-    <Init />
+    <router-view></router-view>
+    <!-- <Init/> -->
   </div>
 </template>
 
