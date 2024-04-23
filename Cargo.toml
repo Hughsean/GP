@@ -1,5 +1,5 @@
 [workspace]
-members = ["demo", "server", "client", "common"]
+members = ["demo", "server", "client", "common", "src-tauri"]
 # default-members = ["quinn", "quinn-proto", "quinn-udp", "bench", "perf"]
 resolver = "2"
 # [profile.bench]
@@ -8,3 +8,4 @@ resolver = "2"
 # [profile.release]
 # debug = true
 # 122.51.128.39
+

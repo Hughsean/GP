@@ -1,3 +1,4 @@
+use common::vf32_to_vu8;
 use cpal::{
     traits::{DeviceTrait, HostTrait, StreamTrait},
     StreamConfig,
@@ -32,6 +33,12 @@ fn record(sender: Sender<Vec<f32>>) {
                 // 这里的 `data` 包含了捕获的音频数据
                 // 你可以在这里处理数据，比如写入文件等
                 println!("send: {}", data.len() * 4);
+                let vec = data.to_vec();
+                let vec = vf32_to_vu8(vec);
+
+                let t = zstd::encode_all(vec.as_slice(), 0).unwrap();
+                println!("{}", t.len());
+
                 sender.send(data.into()).unwrap();
             },
             move |err| {

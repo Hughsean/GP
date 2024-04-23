@@ -13,10 +13,10 @@ pub fn play(data: Vec<u8>) -> anyhow::Result<()> {
     let frame = opencv::imgcodecs::imdecode(&buf, opencv::imgcodecs::IMREAD_COLOR)
         .inspect_err(|e| error!("decode err {e}"))?;
 
-    debug!("解码");
+    // debug!("解码");
     if frame.size().unwrap().width > 0 {
         highgui::imshow("Video", &frame).inspect(|_| debug!("播放数据帧"))?;
-        debug!("show")
+        // debug!("show")
     }
 
     let key = highgui::wait_key(10)?;
@@ -33,14 +33,23 @@ pub fn capture(cam: &mut VideoCapture) -> anyhow::Result<Vec<u8>> {
 
     cam.read(&mut frame).inspect_err(|e| error!("{e}"))?;
     if frame.size()?.width > 0 {
+        debug!("frame {}", frame.data_bytes().unwrap().len());
+
         let params = opencv::types::VectorOfi32::new();
         let mut buf = opencv::types::VectorOfu8::new();
 
         // 对图片编码
-        opencv::imgcodecs::imencode(".jpg", &frame, &mut buf, &params)
+        opencv::imgcodecs::imencode(".jpeg", &frame, &mut buf, &params)
             .inspect_err(|e| error!("encode {e}"))?;
         // debug!("编码");
+
+
+        debug!("jpeg  {}", buf.len());
         std::thread::sleep(Duration::from_millis(10));
+        // debug!("buf   {}", buf.len());
+        // let enc = zstd::encode_all(buf.to_vec().as_slice(), 20).unwrap();
+        // debug!("enc   {}", enc.len());
+        // let dec = zstd::decode_all(enc.as_slice()).unwrap();
 
         Ok(buf.to_vec())
     } else {
@@ -60,13 +69,11 @@ fn capture_video() {
     // let _window =
     highgui::named_window("Video", highgui::WINDOW_AUTOSIZE).unwrap();
 
-    // let start = std::time::Instant::now();
-    // println!("{}", (std::time::Instant::now() - start).as_secs_f64());
+    let data = capture(&mut cam).unwrap();
+    play(data).unwrap();
 
-    loop {
-        let data = capture(&mut cam).unwrap();
-        play(data).unwrap();
-    }
+    let mut buf = String::new();
+    let _ = std::io::stdin().read_line(&mut buf);
 }
 
 fn main() {
@@ -74,5 +81,6 @@ fn main() {
         .with_line_number(true)
         .with_env_filter("cv=debug")
         .init();
+
     capture_video();
 }

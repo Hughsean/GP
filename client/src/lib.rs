@@ -8,8 +8,36 @@ use command::Cli;
 use quic::Endpoint;
 use tracing::{error, info};
 
-#[tokio::main]
-async fn main() {
+struct App {
+    /// 摄像头
+    pub cam: opencv::videoio::VideoCapture,
+    /// 音频传入
+    pub a_conn_in: quic::Connection,
+    /// 音频传出
+    pub a_conn_out: quic::Connection,
+    /// 视频传入
+    pub v_conn_in: quic::Connection,
+    /// 视频传出
+    pub v_conn_out: quic::Connection,
+    /// 程序终止
+    pub exit: Arc<tokio::sync::RwLock<bool>>,
+}
+
+#[test]
+fn f() {
+    let rt = tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+        .unwrap();
+
+    rt.block_on(async {
+        println!("p");
+        eprintln!("ep")
+    });
+}
+
+#[allow(dead_code)]
+async fn _main() {
     tracing_subscriber::fmt()
         .with_line_number(true)
         .with_env_filter("client=debug")

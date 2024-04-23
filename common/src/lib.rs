@@ -6,6 +6,7 @@ pub fn data_write_to_buf(buf: &mut [u8], mut data: Vec<u8>) {
     temp.append(&mut data);
     buf[..temp.len()].copy_from_slice(&temp);
 }
+
 /// 从buf中读取有效数据
 pub fn data_read_from_buf(buf: &[u8]) -> Vec<u8> {
     let mut len = [0u8; 4];
@@ -15,13 +16,30 @@ pub fn data_read_from_buf(buf: &[u8]) -> Vec<u8> {
     buf[4..len + 4].to_vec()
 }
 
-#[test]
-fn f() {
-    let v: Vec<u8> = vec![0; 960];
-    println!("{}", v.as_slice().len())
+pub fn vf32_to_vu8(vf32: Vec<f32>) -> Vec<u8> {
+    let vu8len = vf32.len() * 4;
+
+    let mut ret = Vec::with_capacity(vu8len);
+    unsafe { ret.set_len(vu8len) };
+
+    ret.copy_from_slice(unsafe { core::slice::from_raw_parts(vf32.as_ptr() as *const u8, vu8len) });
+
+    ret
+}
+
+pub fn vu8_to_vf32(vu8: Vec<u8>) -> Vec<f32> {
+    let vf32len = vu8.len() / 4;
+
+    let mut ret = Vec::with_capacity(vf32len);
+    unsafe { ret.set_len(vf32len) };
+
+    ret.copy_from_slice(unsafe {
+        core::slice::from_raw_parts(vu8.as_ptr() as *const f32, vf32len)
+    });
+
+    ret
 }
 
 
-
-pub mod message;
 pub mod endpoint_config;
+pub mod message;
