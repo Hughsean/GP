@@ -1,5 +1,8 @@
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub enum Message {
+    /// 测试连通性
+    Hello,
+
     /// 请求在服务器挂起等待
     Wait(String),
 
@@ -39,9 +42,9 @@ impl Display for Message {
             Message::Wait(name) => format!("等待被呼叫 name({})", name),
             Message::Call(name) => format!("呼叫 name({})", name),
             Message::QueryUsers => "查询等待列表".into(),
-            // Message::FrameSize(a, v) => format!("音频帧字节大小({a}) 视频帧字节大小({v})"),
             Message::Close => "关闭通信".into(),
             Message::Response(_) => "Result".into(),
+            Message::Hello => "Hello".into(),
         };
         f.write_str(&str)
     }

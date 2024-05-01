@@ -9,52 +9,36 @@ use command::Cli;
 use quic::Endpoint;
 use tracing::{error, info};
 
+
+pub const DELAY: u16 = 60;
+
 pub struct Audio {
+    /// 输出流
     pub play: Stream,
+    /// 输入流
     pub record: Stream,
 }
 
-pub struct App {
+pub struct Video {
     /// 摄像头
     pub cam: Arc<opencv::videoio::VideoCapture>,
-    /// 音频传入
-    pub a_conn_in: quic::Connection,
-    /// 音频传出
-    pub a_conn_out: quic::Connection,
-    /// 视频传入
-    pub v_conn_in: quic::Connection,
-    /// 视频传出
-    pub v_conn_out: quic::Connection,
-    /// 程序终止
-    pub exit: Arc<tokio::sync::RwLock<bool>>,
+}
+
+pub struct Client {
+    /// 终止
+    pub stop: Arc<tokio::sync::RwLock<bool>>,
+    // /// 音频传入
+    // pub a_conn_in: quic::Connection,
+    // /// 音频传出
+    // pub a_conn_out: quic::Connection,
+    // /// 视频传入
+    // pub v_conn_in: quic::Connection,
+    // /// 视频传出
+    // pub v_conn_out: quic::Connection,
 }
 
 #[test]
-fn f() {
-    let rt = tokio::runtime::Builder::new_multi_thread()
-        .enable_all()
-        .build()
-        .unwrap();
-
-    let exit = Arc::new(tokio::sync::RwLock::new(false));
-
-    let exitc = exit.clone();
-    rt.spawn(async move {
-        tokio::time::sleep(std::time::Duration::from_secs(5)).await;
-        let mut t = exitc.write().await;
-        *t = true;
-    });
-
-    rt.block_on(async move {
-        loop {
-            if *exit.read().await {
-                break;
-            }
-            println!("read");
-            tokio::time::sleep(std::time::Duration::from_millis(300)).await;
-        }
-    });
-}
+fn f() {}
 
 #[allow(dead_code)]
 async fn _main() {

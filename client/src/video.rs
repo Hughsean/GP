@@ -8,7 +8,8 @@ use opencv::{
 };
 use tracing::{debug, error, info};
 
-const DELAY: u16 = 50;
+use crate::DELAY;
+
 
 pub fn display_c(recv: std::sync::mpsc::Receiver<Vec<u8>>) -> anyhow::Result<()> {
     loop {
@@ -50,7 +51,6 @@ pub fn capture_c(
             opencv::imgcodecs::imencode(".jpg", &frame, &mut buf, &params)
                 .inspect_err(|e| error!("encode {e}"))?;
             send.send(buf.to_vec())?;
-            // debug!("编码");
             std::thread::sleep(Duration::from_millis(DELAY as u64));
         }
     }
@@ -64,7 +64,7 @@ pub async fn video_chanel(
     let input_recv_c = input_recv.clone();
     let output_send_c = output_send.clone();
 
-    // 发送音频
+    // 发送视频
     let a_conn_c = v_conn.clone();
     let f1 = tokio::spawn(async move {
         let lock = input_recv_c.lock().await;
@@ -86,7 +86,7 @@ pub async fn video_chanel(
         Ok::<(), anyhow::Error>(())
     });
 
-    // 接收音频
+    // 接收视频
     let f2 = tokio::spawn(async move {
         let lock = output_send_c.lock().await;
         loop {

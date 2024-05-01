@@ -6,7 +6,7 @@ use quic::{Connection, Endpoint, SendStream};
 use tracing::{debug, error, info, warn};
 
 use crate::{Client, ClientMap};
-use common::message::{Res, Message};
+use common::message::{Message, Res};
 
 pub async fn handle_connection(
     conn: quic::Connecting,
@@ -190,6 +190,11 @@ async fn handle_req(
 
             let msg = Message::Response(Res::UserList(v));
             send.write_all(&msg.to_vec_u8()).await.unwrap();
+        }
+        Message::Hello => {
+            send.write_all(&Message::Response(Res::Ok).to_vec_u8())
+                .await?;
+            send.finish().await?;
         }
         _ => return Err(anyhow!("时序错误")),
     }
