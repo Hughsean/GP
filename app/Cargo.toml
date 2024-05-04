@@ -14,9 +14,12 @@ tauri-build = { version = "1", features = [] }
 tauri = { version = "1", features = ["shell-open"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-opencv = "0.89.0"
+opencv = "0.91.3"
 base64 = "0.22.1"
 client = { path = "../client" }
+quic = { package = "quinn", version = "0.10.2" }
+anyhow = "1.0.81"
+common= {path = "../common"}
 
 [features]
 # This feature is used for production builds or when a dev server is not specified, DO NOT REMOVE!!

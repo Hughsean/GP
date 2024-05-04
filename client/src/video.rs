@@ -111,7 +111,32 @@ pub async fn video_chanel(
     info!("音频结束");
 }
 
-pub async fn _video(v_conn: quic::Connection, mut cam: VideoCapture) {
+
+pub fn make_cam() -> anyhow::Result<VideoCapture> {
+    let cam = videoio::VideoCapture::new(0, videoio::CAP_ANY).unwrap();
+
+    info!(
+        "摄像头 画面宽度: {}",
+        cam.get(videoio::CAP_PROP_FRAME_WIDTH)?
+    );
+    info!(
+        "摄像头 画面高度: {}",
+        cam.get(videoio::CAP_PROP_FRAME_HEIGHT)?
+    );
+    info!("摄像头 FPS: {}", cam.get(opencv::videoio::CAP_PROP_FPS)?);
+
+    if videoio::VideoCapture::is_opened(&cam)? {
+        Ok(cam)
+    } else {
+        Err(anyhow!(""))
+    }
+}
+
+
+
+
+#[allow(dead_code)]
+pub async fn video(v_conn: quic::Connection, mut cam: VideoCapture) {
     // 打开窗口
     opencv::highgui::named_window("Video", opencv::highgui::WINDOW_AUTOSIZE)
         .inspect_err(|e| error!("打开窗口失败 {e}"))
@@ -176,26 +201,6 @@ pub async fn _video(v_conn: quic::Connection, mut cam: VideoCapture) {
     info!("视频已断线")
 }
 
-pub fn make_cam() -> anyhow::Result<VideoCapture> {
-    let cam = videoio::VideoCapture::new(0, videoio::CAP_ANY).unwrap();
-
-    info!(
-        "摄像头 画面宽度: {}",
-        cam.get(videoio::CAP_PROP_FRAME_WIDTH)?
-    );
-    info!(
-        "摄像头 画面高度: {}",
-        cam.get(videoio::CAP_PROP_FRAME_HEIGHT)?
-    );
-    info!("摄像头 FPS: {}", cam.get(opencv::videoio::CAP_PROP_FPS)?);
-
-    if videoio::VideoCapture::is_opened(&cam)? {
-        Ok(cam)
-    } else {
-        Err(anyhow!(""))
-    }
-}
-
 #[allow(dead_code)]
 pub fn display(data: Vec<u8>) -> anyhow::Result<()> {
     let buf = opencv::types::VectorOfu8::from(data);
@@ -240,7 +245,6 @@ pub fn capture(cam: &mut VideoCapture) -> anyhow::Result<Vec<u8>> {
 }
 
 #[tokio::test]
-
 async fn t() {
     let mut cam = make_cam().unwrap();
 

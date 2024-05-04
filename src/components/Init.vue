@@ -4,12 +4,19 @@
     <img src="../assets/xiaohui.png" class="xiaohui">
     <h1>QUIC-Based 音视频通信</h1>
   </div>
+
   <p></p>
   <p></p>
   <p></p>
   <form @submit.prevent="click">
     <div class="row">
-      <input v-model="name" placeholder="输入用户名" style="margin-bottom: 5px;width: 65%;" />
+      <el-radio-group v-model="mode" size="large" @change="change" style="margin-right: 5%;margin-bottom: 1%;">
+        <el-radio-button label="呼叫" value="call" />
+        <el-radio-button label="等待" value="wait" />
+      </el-radio-group>
+
+      <input v-model="name" :placeholder="placeholder" style="margin-bottom: 5px;width: 41%;" />
+
     </div>
     <div class="row">
       <input v-model="addr" placeholder="输入服务器地址" style="width: 49%;" />
@@ -33,30 +40,51 @@ const name = ref("");
 // 服务器地址
 const addr = ref("127.0.0.1");
 
+const mode = ref("call")
+const placeholder = ref("输入被呼叫用户名")
 
+const change = () => {
+  name.value = ""
+  if (mode.value === "call") {
+    placeholder.value = "输入被呼叫用户名"
+  } else {
+    placeholder.value = "输入您的用户名"
+  }
+}
 async function click() {
+
+  if (name.value.length === 0) {
+    ElMessage.error('请输入用户名')
+    return
+  }
+  if (addr.value.length === 0) {
+    ElMessage.error('请输入地址')
+    return
+  }
+
   // 显示 Loading
   const loading = ElLoading.service({
     lock: true,
-    text: '测试连接',
+    text: '测试连接并初始化设备',
     background: 'rgba(0, 0, 0, 0.7)',
   })
 
   invoke(
-    "init", { name: name.value, addr: addr.value }
-  ).then((_m) => {
+    "init", { addr: addr.value, name: name.value }
+  ).then(() => {
     ElMessage({
       message: '连接测试成功',
       type: 'success',
     });
-    // 转到Do页面
-    router.push("/Start");
+    // 跳转页面
+    router.push("/Play");
   }).catch((e) => {
-    ElMessage.error('连接错误: ' + e)
+    ElMessage.error('错误' + e)
   }).finally(() => {
     // 关闭Loading
     loading.close()
   });
+
 }
 
 </script>

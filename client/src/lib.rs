@@ -9,39 +9,98 @@ use command::Cli;
 use quic::Endpoint;
 use tracing::{error, info};
 
+use crate::{
+    audio::{make_input_stream, make_output_stream},
+    video::make_cam,
+};
 
 pub const DELAY: u16 = 60;
 
 pub struct Audio {
     /// 输出流
-    pub play: Stream,
+    pub play: Arc<tokio::sync::Mutex<Stream>>,
     /// 输入流
-    pub record: Stream,
+    pub record: Arc<tokio::sync::Mutex<Stream>>,
+    /// 用于网络传输
+    pub net_send_a: Arc<tokio::sync::Mutex<std::sync::mpsc::Sender<Vec<f32>>>>,
+    pub net_recv_a: Arc<tokio::sync::Mutex<std::sync::mpsc::Receiver<Vec<f32>>>>,
 }
 
 pub struct Video {
     /// 摄像头
-    pub cam: Arc<opencv::videoio::VideoCapture>,
+    pub cam: Arc<tokio::sync::Mutex<opencv::videoio::VideoCapture>>,
+    // pub send: std::sync::mpsc::Sender<Vec<u8>>,
+    // pub recv: std::sync::mpsc::Receiver<Vec<u8>>,
+    pub send: Arc<tokio::sync::Mutex<std::sync::mpsc::Sender<Vec<u8>>>>,
+    pub recv: Arc<tokio::sync::Mutex<std::sync::mpsc::Receiver<Vec<u8>>>>,
+    /// 用于网络传输
+    pub net_send_v: Arc<tokio::sync::Mutex<std::sync::mpsc::Sender<Vec<u8>>>>,
+    pub net_recv_v: Arc<tokio::sync::Mutex<std::sync::mpsc::Receiver<Vec<u8>>>>,
 }
 
 pub struct Client {
     /// 终止
     pub stop: Arc<tokio::sync::RwLock<bool>>,
-    // /// 音频传入
-    // pub a_conn_in: quic::Connection,
-    // /// 音频传出
-    // pub a_conn_out: quic::Connection,
-    // /// 视频传入
-    // pub v_conn_in: quic::Connection,
-    // /// 视频传出
-    // pub v_conn_out: quic::Connection,
+    pub cam: Arc<tokio::sync::Mutex<opencv::videoio::VideoCapture>>,
+    // pub a: Arc<Audio>,
+    // pub v: Arc<Video>,
+    // pub endp: quic::Endpoint,
 }
 
-#[test]
-fn f() {}
+impl Client {
+    pub fn new() -> anyhow::Result<Self> {
+        // let (record_send, record_recv) = std::sync::mpsc::channel::<Vec<f32>>();
+        // let (play_send, play_recv) = std::sync::mpsc::channel::<Vec<f32>>();
+
+        // let net_recv_a = Arc::new(tokio::sync::Mutex::new(record_recv));
+        // let net_send_a = Arc::new(tokio::sync::Mutex::new(play_send));
+
+        // // 录音
+        // let record = make_input_stream(record_send);
+        // // 播放
+        // let play = make_output_stream(play_recv);
+
+        // let a = Audio {
+        //     play: Arc::new(tokio::sync::Mutex::new(play)),
+        //     record: Arc::new(tokio::sync::Mutex::new(record)),
+
+        //     net_send_a,
+        //     net_recv_a,
+        // };
+
+        let cam = Arc::new(tokio::sync::Mutex::new(make_cam()?));
+
+        // // 捕获
+        // let (capture_send, capture_recv) = std::sync::mpsc::channel::<Vec<u8>>();
+        // // 播放
+        // let (play_send, play_recv) = std::sync::mpsc::channel::<Vec<u8>>();
+
+        // let send = Arc::new(tokio::sync::Mutex::new(capture_send));
+        // let recv = Arc::new(tokio::sync::Mutex::new(play_recv));
+        // // 向外传输
+        // let net_recv_v = Arc::new(tokio::sync::Mutex::new(capture_recv));
+        // // 接收数据
+        // let net_send_v = Arc::new(tokio::sync::Mutex::new(play_send.clone()));
+
+        // let v = Video {
+        //     cam,
+        //     send,
+        //     recv,
+        //     net_send_v,
+        //     net_recv_v,
+        // };
+
+        Ok(Self {
+            stop: Arc::new(tokio::sync::RwLock::new(false)),
+            // a: Arc::new(a),
+            // v: Arc::new(v),
+            cam,
+        })
+    }
+}
 
 #[allow(dead_code)]
-async fn _main() {
+async fn main_() {
     tracing_subscriber::fmt()
         .with_line_number(true)
         .with_env_filter("client=debug")
@@ -133,8 +192,8 @@ fn config(cli: Cli) -> anyhow::Result<Endpoint> {
     Ok(endpoint)
 }
 
-mod audio;
+pub mod audio;
 mod call;
 mod command;
-mod video;
+pub mod video;
 mod wait;
