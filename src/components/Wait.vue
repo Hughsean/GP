@@ -2,11 +2,11 @@
     <div class="row">
         <img style="height: 440px;" :src="img" fit="contain" />
     </div>
-    <div class="row">
+    <!-- <div class="row">
         <div class="row">
             <el-button type="success" :disabled="play_disable" @click="play">Play</el-button>
         </div>
-    </div>
+    </div> -->
 </template>
 
 <script setup lang="ts">
@@ -36,5 +36,8 @@ async function play() {
     });
 }
 
+setTimeout(async () => {
+    await play()
+}, 333);
 
 </script>

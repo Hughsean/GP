@@ -61,7 +61,7 @@ async fn handle_req(
 
             if clients_lock.contains_key(&name) {
                 // 用户名重复
-                debug!("用户名({})重复", name);
+                info!("用户名({})重复", name);
 
                 let msg = Message::Response(Res::Err);
                 send.write_all(&msg.to_vec_u8()).await.unwrap();
@@ -71,10 +71,10 @@ async fn handle_req(
                 send.write_all(&msg.to_vec_u8()).await.unwrap();
                 send.finish().await?;
 
-                // 音频连接
-                let a_conn = data_endp.accept().await.unwrap().await?;
-                // 视频连接
-                let v_conn = data_endp.accept().await.unwrap().await?;
+                // // 音频连接
+                // let a_conn = data_endp.accept().await.unwrap().await?;
+                // // 视频连接
+                // let v_conn = data_endp.accept().await.unwrap().await?;
 
                 // 'test: {
                 //     let data = [0u8; 1024 * 10];
@@ -117,7 +117,7 @@ async fn handle_req(
                             }
                         }
                         drop(ctrl_lock);
-                        tokio::time::sleep(Duration::from_millis(2000)).await;
+                        tokio::time::sleep(Duration::from_millis(1500)).await;
                     }
                     debug!("保活线程退出");
                     Ok::<(), anyhow::Error>(())
@@ -127,8 +127,8 @@ async fn handle_req(
                     name,
                     Client {
                         ctrl_conn,
-                        a_conn,
-                        v_conn,
+                        a_conn: None,
+                        v_conn: None,
                         ctrl,
                     },
                 );
@@ -158,6 +158,7 @@ async fn handle_req(
                 return Ok(());
             }
 
+            // 主动端音视频连接建立
             // 音频连接
             let a_conn = data_endp.accept().await.unwrap().await?;
             // 视频连接
@@ -167,15 +168,30 @@ async fn handle_req(
 
             let c_active = Client {
                 ctrl_conn,
-                a_conn,
-                v_conn,
+                a_conn: Some(a_conn),
+                v_conn: Some(v_conn),
                 ctrl: None,
             };
 
-            let c_passive = clients_lock.remove(&name).unwrap();
+            let mut c_passive = clients_lock.remove(&name).unwrap();
             // 停止等待
             let _ = c_passive.ctrl.clone().unwrap().lock().await.take();
-            debug!("要求保活线程停止");
+            debug!("保活线程停止");
+
+            // 唤醒被呼叫者
+            let msg = Message::Response(Res::Wake);
+            let (mut wake_sent, _) = c_passive.ctrl_conn.open_bi().await?;
+            wake_sent.write_all(&msg.to_vec_u8()).await?;
+            wake_sent.finish().await?;
+
+            // 被动端音视频连接建立
+            // 音频连接
+            let a_conn = data_endp.accept().await.unwrap().await?;
+            // 视频连接
+            let v_conn = data_endp.accept().await.unwrap().await?;
+
+            c_passive.a_conn = Some(a_conn);
+            c_passive.v_conn = Some(v_conn);
 
             drop(clients_lock);
             handle_call(c_active, c_passive).await?;
@@ -202,15 +218,23 @@ async fn handle_req(
 }
 
 pub async fn handle_call(active: Client, passive: Client) -> anyhow::Result<()> {
-    // 唤醒被呼叫者
-    let msg = Message::Response(Res::Wake);
-    let (mut wake_sent, _) = passive.ctrl_conn.open_bi().await?;
-    wake_sent.write_all(&msg.to_vec_u8()).await?;
-    wake_sent.finish().await?;
+    // // 唤醒被呼叫者
+    // let msg = Message::Response(Res::Wake);
+    // let (mut wake_sent, _) = passive.ctrl_conn.open_bi().await?;
+    // wake_sent.write_all(&msg.to_vec_u8()).await?;
+    // wake_sent.finish().await?;
 
     // 转发数据
-    let t1 = tokio::spawn(exchange_uni(active.a_conn, passive.a_conn, "音频"));
-    let t2 = tokio::spawn(exchange_uni(active.v_conn, passive.v_conn, "视频"));
+    let t1 = tokio::spawn(exchange_uni(
+        active.a_conn.unwrap(),
+        passive.a_conn.unwrap(),
+        "音频",
+    ));
+    let t2 = tokio::spawn(exchange_uni(
+        active.v_conn.unwrap(),
+        passive.v_conn.unwrap(),
+        "视频",
+    ));
     info!("转发音视频数据");
     let _ = tokio::join!(t1, t2);
     Ok(())

@@ -96,8 +96,8 @@ pub async fn wait_inner(
         // 创建音视频连接
         if info.is_ok() {
             // debug!("请求被接受");
-            let a_conn = endp.connect(data_addr, server_name)?.await?;
-            let v_conn = endp.connect(data_addr, server_name)?.await?;
+            // let a_conn = endp.connect(data_addr, server_name)?.await?;
+            // let v_conn = endp.connect(data_addr, server_name)?.await?;
 
             loop {
                 let (_, mut wake_recv) = ctrl_conn.accept_bi().await?;
@@ -116,13 +116,14 @@ pub async fn wait_inner(
                 }
             }
 
-            win.emit("wake", ()).unwrap();
+            let a_conn = endp.connect(data_addr, server_name)?.await?;
+            let v_conn = endp.connect(data_addr, server_name)?.await?;
 
-            // info!("被服务器唤醒");
+            win.emit("wake", ()).unwrap();
+            //
             input_stream.play().unwrap();
             output_stream.play().unwrap();
-            // info!("音频设备启动");
-
+            //
             let stopc = stop.clone();
             let t1 = std::thread::spawn(move || {
                 let _ = crate::capture_c(cam, vinput_send.clone(), stopc);
@@ -145,13 +146,11 @@ pub async fn wait_inner(
             .await;
 
             let _ = t3.await;
-            input_stream.pause()?;
-            output_stream.pause()?;
-
-            // let _ = t1.await;
-            // let _ = t2.await;
-
-            *stop.write().await = true;
+            
+            exit(0);
+            // input_stream.pause()?;
+            // output_stream.pause()?;
+            // *stop.write().await = true;
         } else {
             return Err(anyhow::anyhow!("请求错误"));
         }

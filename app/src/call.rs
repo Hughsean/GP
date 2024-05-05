@@ -75,8 +75,7 @@ async fn call_inner(
     let voutput_send_a = Arc::new(Mutex::new(voutput_send.clone()));
     /////////////////////////////////////////////
 
-    let ctrl_conn = endp.connect(ctrl_addr, server_name)?;
-    let ctrl_conn = ctrl_conn.await?;
+    let ctrl_conn = endp.connect(ctrl_addr, server_name)?.await?;
 
     let (mut send, mut recv) = ctrl_conn.open_bi().await?;
     let msg = Message::Call(name.into());

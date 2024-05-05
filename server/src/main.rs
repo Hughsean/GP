@@ -15,18 +15,10 @@ struct Client {
     /// 备用连接
     pub ctrl_conn: quic::Connection,
     /// 音频连接
-    pub a_conn: quic::Connection,
-    // pub a_conn_send: quic::Connection,
+    pub a_conn: Option<quic::Connection>,
     /// 视频连接
-    pub v_conn: quic::Connection,
-    // pub v_conn_send: quic::Connection,
-    // /// 音频连接
-    // pub a_conn_recv: quic::Connection,
-    // pub a_conn_send: quic::Connection,
-    // /// 视频连接
-    // pub v_conn_recv: quic::Connection,
-    // pub v_conn_send: quic::Connection,
-    ///
+    pub v_conn: Option<quic::Connection>,
+    /// 保活线程使用的连接句柄
     pub ctrl: Option<Arc<tokio::sync::Mutex<Option<quic::Connection>>>>,
 }
 

@@ -2,12 +2,11 @@
     <div class="row">
         <img style="height: 440px;" :src="img" fit="contain" />
     </div>
-    <div class="row">
+    <!-- <div class="row">
         <div class="row">
             <el-button type="success" :disabled="play_disable" @click="play">开始</el-button>
-            <!-- <el-button type="danger" :disabled="!play_disable" @click="close"></el-button> -->
         </div>
-    </div>
+    </div> -->
 </template>
 
 <script setup lang="ts">
@@ -30,5 +29,9 @@ async function play() {
         img.value = "data:image/jpeg;base64," + event.payload as string;
     });
 }
+
+setTimeout(async () => {
+    await play()
+}, 333);
 
 </script>

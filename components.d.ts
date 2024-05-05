@@ -8,7 +8,6 @@ export {}
 declare module 'vue' {
   export interface GlobalComponents {
     Call: typeof import('./src/components/Call.vue')['default']
-    ElButton: typeof import('element-plus/es')['ElButton']
     ElRadioButton: typeof import('element-plus/es')['ElRadioButton']
     ElRadioGroup: typeof import('element-plus/es')['ElRadioGroup']
     Init: typeof import('./src/components/Init.vue')['default']
