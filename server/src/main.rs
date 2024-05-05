@@ -33,7 +33,6 @@ struct Client {
 type ClientMap = Arc<tokio::sync::Mutex<HashMap<String, Client>>>;
 
 fn main() {
-    // std::env::set_var("RUST_LOG", "server=DEBUG");
     tracing_subscriber::fmt()
         .with_line_number(true)
         .with_env_filter("server=debug")

@@ -1,8 +1,10 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
 
 import Init from './components/Init.vue'
-import Start from './components/Start.vue'
-import Play from './components/Play.vue'
+
+import Call from './components/Call.vue'
+
+import Wait from './components/Wait.vue'
 
 const routes = [
     {
@@ -10,11 +12,12 @@ const routes = [
         component: Init
     },
     {
-        path: '/Start',
-        component: Start
-    }, {
-        path: '/Play',
-        component: Play
+        path: '/Call',
+        component: Call
+    },
+    {
+        path: '/Wait',
+        component: Wait
     }
 ]
 

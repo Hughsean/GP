@@ -11,8 +11,8 @@
   <form @submit.prevent="click">
     <div class="row">
       <el-radio-group v-model="mode" size="large" @change="change" style="margin-right: 5%;margin-bottom: 1%;">
-        <el-radio-button label="呼叫" value="call" />
-        <el-radio-button label="等待" value="wait" />
+        <el-radio-button label="呼叫" value="Call" />
+        <el-radio-button label="等待" value="Wait" />
       </el-radio-group>
 
       <input v-model="name" :placeholder="placeholder" style="margin-bottom: 5px;width: 41%;" />
@@ -40,19 +40,18 @@ const name = ref("");
 // 服务器地址
 const addr = ref("127.0.0.1");
 
-const mode = ref("call")
+const mode = ref("Call")
 const placeholder = ref("输入被呼叫用户名")
 
 const change = () => {
-  name.value = ""
-  if (mode.value === "call") {
+  // name.value = ""
+  if (mode.value === "Call") {
     placeholder.value = "输入被呼叫用户名"
   } else {
     placeholder.value = "输入您的用户名"
   }
 }
 async function click() {
-
   if (name.value.length === 0) {
     ElMessage.error('请输入用户名')
     return
@@ -77,7 +76,10 @@ async function click() {
       type: 'success',
     });
     // 跳转页面
-    router.push("/Play");
+
+    router.push("/" + mode.value);
+
+
   }).catch((e) => {
     ElMessage.error('错误' + e)
   }).finally(() => {

@@ -6,17 +6,17 @@ workspace = ".."
 
 [dependencies]
 anyhow = "1.0.81"
-quic = { package = "quinn" ,version = "0.10.2"}
+quic = { package = "quinn", version = "0.10.2" }
 
 
 tokio = { version = "1.37.0", features = ["macros", "rt-multi-thread"] }
-rustls = { version = "0.21.0", default-features = false}
+rustls = { version = "0.21.0", default-features = false }
 opencv = "0.91.3"
 cpal = "0.15.3"
 serde = { version = "1.0.197", features = ["derive"] }
 serde_json = "1.0.115"
 clap = { version = "4.5.4", features = ["derive"] }
-common={path = "../common"}
+common = { path = "../common" }
 
 tracing-subscriber = { version = "0.3.18", features = [
     "env-filter",

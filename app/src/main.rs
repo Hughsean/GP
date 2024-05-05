@@ -1,44 +1,53 @@
-// Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use std::net::Ipv4Addr;
+use std::{net::SocketAddr, process::exit, sync::Arc, thread::sleep, time::Duration};
 
+use base64::Engine;
+use call::call;
 use client::Client;
 use common::{
     endpoint_config::{make_endpoint, EndpointType},
     message::{Message, Res},
 };
-use quic::Endpoint;
+use opencv::{
+    core::{Mat, MatTraitConst, VectorToVec},
+    videoio::{VideoCapture, VideoCaptureTrait},
+};
+use tauri::async_runtime::{Mutex, RwLock};
+use wait::wait;
 
-// #[tauri::command]
-// fn play(win: tauri::Window, state: tauri::State<App>) {
-//     // todo
-//     let mut frame = Mat::default();
-//     state.cam.blocking_lock().read(&mut frame).unwrap();
-//     if frame.size().unwrap().width > 0 {
-//         let params = opencv::types::VectorOfi32::new();
-//         let mut buf = opencv::types::VectorOfu8::new();
+struct App {
+    pub client: std::sync::Mutex<Option<Client>>,
+}
 
-//         // 对图片编码
-//         opencv::imgcodecs::imencode(".jpg", &frame, &mut buf, &params).unwrap();
+fn main() {
+    let state = App {
+        client: std::sync::Mutex::new(None),
+    };
 
-//         std::thread::sleep(Duration::from_millis(DELAY as u64));
-//         let base64str = base64::engine::general_purpose::STANDARD.encode(buf.as_slice());
-//         println!("{}", &base64str);
-//         // Ok(base64str)
-//         win.emit("play_frame", base64str).unwrap();
-//     }
-// }
+    tauri::Builder::default()
+        .manage(state)
+        .invoke_handler(tauri::generate_handler![init, wait, close, test, call])
+        .run(tauri::generate_context!())
+        .expect("error while running tauri application");
+}
+
+mod call;
+mod wait;
+
 #[tauri::command]
+/// 初始化
 fn init(addr: &str, name: &str, state: tauri::State<App>) -> Result<(), String> {
-    drop(state.client.lock().unwrap().take());
+    tauri::async_runtime::block_on(async {
+        let ctrl_addr = String::from(addr) + ":12345";
+        let data_addr = String::from(addr) + ":12346";
 
-    tauri::async_runtime::block_on(async {        
-        let addr = String::from(addr) + ":12345";
+        let ctrl_addr: SocketAddr = ctrl_addr.parse()?;
+        let data_addr: SocketAddr = data_addr.parse()?;
+        let endp = make_endpoint(EndpointType::Client("0.0.0.0:0".parse()?))?;
 
-        let (mut s, mut r) = state
-            .endp
-            .connect(addr.parse()?, "localhost")?
+        let (mut s, mut r) = endp
+            .connect(ctrl_addr, "localhost")?
             .await?
             .open_bi()
             .await?;
@@ -51,40 +60,77 @@ fn init(addr: &str, name: &str, state: tauri::State<App>) -> Result<(), String> 
         let msg = serde_json::from_slice::<Message>(&res)?;
 
         if let Message::Response(Res::Ok) = msg {
+            if state.client.lock().unwrap().is_none() {
+                let client = client::Client::new(ctrl_addr, data_addr, name.into())?;
+                state.client.lock().unwrap().replace(client);
+            }
             anyhow::Ok(())
         } else {
             Err(anyhow::anyhow!("响应错误"))
         }
     })
     .or(Err("连接测试错误"))?;
-
-    let client = client::Client::new().or(Err("()"))?;
-
-    state.client.lock().unwrap().replace(client);
-    state.name.lock().unwrap().replace(String::from(name));
-
     Ok(())
 }
 
-struct App {
-    pub client: std::sync::Mutex<Option<Client>>,
-    pub name: std::sync::Mutex<Option<String>>,
-    pub endp: Endpoint,
+#[tauri::command]
+/// 初始化
+fn close() {
+    exit(0);
 }
 
-fn main() {
-    let state = App {
-        client: std::sync::Mutex::new(None),
-        name: std::sync::Mutex::new(None),
-        endp: make_endpoint(EndpointType::Client("0.0.0.0:0".parse().unwrap())).unwrap(),
-    };
-
-    tauri::Builder::default()
-        .manage(state)
-        .invoke_handler(tauri::generate_handler![init,])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+#[tauri::command]
+/// 初始化
+fn test(win: tauri::Window) {
+    for _ in 0..10 {
+        win.emit("test", ()).unwrap();
+        sleep(Duration::from_secs(1));
+    }
 }
 
-mod call;
-mod wait;
+async fn display_c(
+    recv: std::sync::mpsc::Receiver<Vec<u8>>,
+    stop: Arc<RwLock<bool>>,
+    win: tauri::Window,
+) -> anyhow::Result<()> {
+    loop {
+        if *stop.read().await {
+            break;
+        }
+        match recv.recv() {
+            Ok(data) => {
+                let buf = opencv::types::VectorOfu8::from(data);
+
+                let base64str = base64::engine::general_purpose::STANDARD.encode(buf.as_slice());
+
+                win.emit("play_frame", base64str).unwrap();
+            }
+            Err(e) => return Err(anyhow::anyhow!("{e}")),
+        }
+    }
+    Ok(())
+}
+
+async fn capture_c(
+    cam: Arc<Mutex<VideoCapture>>,
+    send: std::sync::mpsc::Sender<Vec<u8>>,
+    stop: Arc<RwLock<bool>>,
+) -> anyhow::Result<()> {
+    let mut frame = Mat::default();
+    loop {
+        if *stop.read().await {
+            break Ok(());
+        }
+
+        cam.lock().await.read(&mut frame)?;
+        if frame.size()?.width > 0 {
+            let params = opencv::types::VectorOfi32::new();
+            let mut buf = opencv::types::VectorOfu8::new();
+
+            // 对图片编码
+            opencv::imgcodecs::imencode(".jpg", &frame, &mut buf, &params)?;
+            send.send(buf.to_vec())?;
+            std::thread::sleep(Duration::from_millis(client::DELAY as u64));
+        }
+    }
+}

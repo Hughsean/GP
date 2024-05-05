@@ -9,10 +9,7 @@ use command::Cli;
 use quic::Endpoint;
 use tracing::{error, info};
 
-use crate::{
-    audio::{make_input_stream, make_output_stream},
-    video::make_cam,
-};
+use crate::video::make_cam;
 
 pub const DELAY: u16 = 60;
 
@@ -42,59 +39,24 @@ pub struct Client {
     /// 终止
     pub stop: Arc<tokio::sync::RwLock<bool>>,
     pub cam: Arc<tokio::sync::Mutex<opencv::videoio::VideoCapture>>,
+    pub name: String,
+    // pub endp: std::sync::Mutex<Option<Endpoint>>,
+    pub ctrl_addr: SocketAddr,
+    pub data_addr: SocketAddr,
     // pub a: Arc<Audio>,
     // pub v: Arc<Video>,
     // pub endp: quic::Endpoint,
 }
 
 impl Client {
-    pub fn new() -> anyhow::Result<Self> {
-        // let (record_send, record_recv) = std::sync::mpsc::channel::<Vec<f32>>();
-        // let (play_send, play_recv) = std::sync::mpsc::channel::<Vec<f32>>();
-
-        // let net_recv_a = Arc::new(tokio::sync::Mutex::new(record_recv));
-        // let net_send_a = Arc::new(tokio::sync::Mutex::new(play_send));
-
-        // // 录音
-        // let record = make_input_stream(record_send);
-        // // 播放
-        // let play = make_output_stream(play_recv);
-
-        // let a = Audio {
-        //     play: Arc::new(tokio::sync::Mutex::new(play)),
-        //     record: Arc::new(tokio::sync::Mutex::new(record)),
-
-        //     net_send_a,
-        //     net_recv_a,
-        // };
-
+    pub fn new(ctrl_addr: SocketAddr, data_addr: SocketAddr, name: String) -> anyhow::Result<Self> {
         let cam = Arc::new(tokio::sync::Mutex::new(make_cam()?));
-
-        // // 捕获
-        // let (capture_send, capture_recv) = std::sync::mpsc::channel::<Vec<u8>>();
-        // // 播放
-        // let (play_send, play_recv) = std::sync::mpsc::channel::<Vec<u8>>();
-
-        // let send = Arc::new(tokio::sync::Mutex::new(capture_send));
-        // let recv = Arc::new(tokio::sync::Mutex::new(play_recv));
-        // // 向外传输
-        // let net_recv_v = Arc::new(tokio::sync::Mutex::new(capture_recv));
-        // // 接收数据
-        // let net_send_v = Arc::new(tokio::sync::Mutex::new(play_send.clone()));
-
-        // let v = Video {
-        //     cam,
-        //     send,
-        //     recv,
-        //     net_send_v,
-        //     net_recv_v,
-        // };
-
         Ok(Self {
             stop: Arc::new(tokio::sync::RwLock::new(false)),
-            // a: Arc::new(a),
-            // v: Arc::new(v),
             cam,
+            name,
+            ctrl_addr,
+            data_addr,
         })
     }
 }
