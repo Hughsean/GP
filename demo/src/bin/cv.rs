@@ -2,7 +2,9 @@ use std::time::Duration;
 
 use anyhow::anyhow;
 use opencv::{
+    core::Size,
     highgui,
+    imgproc::resize,
     prelude::*,
     videoio::{self, VideoCapture},
 };
@@ -33,16 +35,26 @@ pub fn capture(cam: &mut VideoCapture) -> anyhow::Result<Vec<u8>> {
 
     cam.read(&mut frame).inspect_err(|e| error!("{e}"))?;
     if frame.size()?.width > 0 {
-        debug!("frame {}", frame.data_bytes().unwrap().len());
+        let mut new_frame = Mat::default();
+        resize(
+            &frame,
+            &mut new_frame,
+            Size::new(600, 400),
+            0.0,
+            0.0,
+            opencv::imgproc::INTER_LINEAR,
+        )
+        .inspect_err(|e| error!("Resize error: {e}"))?;
 
+        debug!("frame {}", new_frame.data_bytes().unwrap().len());
+        
         let params = opencv::types::VectorOfi32::new();
         let mut buf = opencv::types::VectorOfu8::new();
 
         // 对图片编码
-        opencv::imgcodecs::imencode(".jpeg", &frame, &mut buf, &params)
+        opencv::imgcodecs::imencode(".jpeg", &new_frame, &mut buf, &params)
             .inspect_err(|e| error!("encode {e}"))?;
         // debug!("编码");
-
 
         debug!("jpeg  {}", buf.len());
         std::thread::sleep(Duration::from_millis(10));

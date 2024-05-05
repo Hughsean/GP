@@ -1,12 +1,7 @@
 <template>
-    <div class="row">
-        <img style="height: 440px;" :src="img" fit="contain" />
+    <div>
+        <img style="width: 100%;" :src="img" />
     </div>
-    <!-- <div class="row">
-        <div class="row">
-            <el-button type="success" :disabled="play_disable" @click="play">Play</el-button>
-        </div>
-    </div> -->
 </template>
 
 <script setup lang="ts">

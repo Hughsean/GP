@@ -8,7 +8,7 @@ use common::{
 use cpal::traits::StreamTrait;
 use opencv::videoio::VideoCapture;
 use std::{net::SocketAddr, process::exit, sync::Arc};
-use tauri::async_runtime::{self, Mutex, RwLock};
+use tauri::async_runtime::{self, Mutex};
 
 use crate::App;
 
@@ -49,7 +49,7 @@ async fn call_inner(
     server_name: &str,
     name: &str,
     cam: Arc<std::sync::Mutex<VideoCapture>>,
-    stop: Arc<RwLock<bool>>,
+    stop: Arc<std::sync::RwLock<bool>>,
     win: tauri::Window,
 ) -> anyhow::Result<()> {
     let endp = make_endpoint(EndpointType::Client("0.0.0.0:0".parse()?))?;
@@ -99,11 +99,11 @@ async fn call_inner(
 
         // info!("已建立音视频连接");
         let stopc = stop.clone();
-        let t1 = std::thread::spawn(move || {
+        let _t1 = std::thread::spawn(move || {
             let _ = crate::capture_c(cam, vinput_send.clone(), stopc);
         });
         let stopc = stop.clone();
-        let t2 = std::thread::spawn(move || {
+        let _t2 = std::thread::spawn(move || {
             let _ = crate::display_c(voutput_recv, stopc, win);
         });
 
@@ -122,14 +122,12 @@ async fn call_inner(
         let _ = t3.await;
         input_stream.pause()?;
         output_stream.pause()?;
+        *stop.write().unwrap() = true;
 
+        exit(0);
         // let _ = t1.await;
         // let _ = t2.await;
-
-        *stop.write().await = true;
     } else {
         return Err(anyhow!("请求错误"));
     }
-
-    Ok(())
 }

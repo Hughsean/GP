@@ -11,9 +11,9 @@ use common::{
 };
 use opencv::{
     core::{Mat, MatTraitConst, VectorToVec},
+    imgproc::resize,
     videoio::{VideoCapture, VideoCaptureTrait},
 };
-use tauri::async_runtime::{Mutex, RwLock};
 use wait::wait;
 
 struct App {
@@ -90,13 +90,13 @@ fn test(win: tauri::Window) {
 
 fn display_c(
     recv: std::sync::mpsc::Receiver<Vec<u8>>,
-    stop: Arc<RwLock<bool>>,
+    stop: Arc<std::sync::RwLock<bool>>,
     win: tauri::Window,
 ) -> anyhow::Result<()> {
     loop {
-        // if *stop.read().await {
-        //     break;
-        // }
+        if *stop.read().unwrap() {
+            break;
+        }
         match recv.recv() {
             Ok(data) => {
                 let buf = opencv::types::VectorOfu8::from(data);
@@ -114,19 +114,34 @@ fn display_c(
 fn capture_c(
     cam: Arc<std::sync::Mutex<VideoCapture>>,
     send: std::sync::mpsc::Sender<Vec<u8>>,
-    stop: Arc<RwLock<bool>>,
+    stop: Arc<std::sync::RwLock<bool>>,
 ) -> anyhow::Result<()> {
     let mut frame = Mat::default();
     loop {
+        if *stop.read().unwrap() {
+            break;
+        }
         cam.lock().unwrap().read(&mut frame)?;
         if frame.size()?.width > 0 {
+            let mut new_frame = Mat::default();
+
+            resize(
+                &frame,
+                &mut new_frame,
+                opencv::core::Size::new(600, 400),
+                0.0,
+                0.0,
+                opencv::imgproc::INTER_LINEAR,
+            )?;
+
             let params = opencv::types::VectorOfi32::new();
             let mut buf = opencv::types::VectorOfu8::new();
 
             // 对图片编码
-            opencv::imgcodecs::imencode(".jpg", &frame, &mut buf, &params)?;
+            opencv::imgcodecs::imencode(".jpg", &new_frame, &mut buf, &params)?;
             send.send(buf.to_vec())?;
             std::thread::sleep(Duration::from_millis(client::DELAY as u64));
         }
     }
+    Ok(())
 }

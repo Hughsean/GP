@@ -37,7 +37,7 @@ pub struct Video {
 
 pub struct Client {
     /// 终止
-    pub stop: Arc<tokio::sync::RwLock<bool>>,
+    pub stop: Arc<std::sync::RwLock<bool>>,
     pub cam: Arc<std::sync::Mutex<opencv::videoio::VideoCapture>>,
     pub name: String,
     // pub endp: std::sync::Mutex<Option<Endpoint>>,
@@ -52,7 +52,7 @@ impl Client {
     pub fn new(ctrl_addr: SocketAddr, data_addr: SocketAddr, name: String) -> anyhow::Result<Self> {
         let cam = Arc::new(std::sync::Mutex::new(make_cam()?));
         Ok(Self {
-            stop: Arc::new(tokio::sync::RwLock::new(false)),
+            stop: Arc::new(std::sync::RwLock::new(false)),
             cam,
             name,
             ctrl_addr,

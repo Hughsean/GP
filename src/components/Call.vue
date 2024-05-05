@@ -1,19 +1,13 @@
 <template>
     <div class="row">
-        <img style="height: 440px;" :src="img" fit="contain" />
+        <img style="width: 100%;" :src="img" />
     </div>
-    <!-- <div class="row">
-        <div class="row">
-            <el-button type="success" :disabled="play_disable" @click="play">开始</el-button>
-        </div>
-    </div> -->
 </template>
 
 <script setup lang="ts">
-import { ComponentOptionsBase, ComponentPublicInstance, Ref, ref } from 'vue';
-import { UnlistenFn, emit, listen } from '@tauri-apps/api/event';
+import { ref } from 'vue';
+import { listen } from '@tauri-apps/api/event';
 import { invoke } from '@tauri-apps/api';
-import { ElLoading, LoadingParentElement } from 'element-plus';
 const play_disable = ref(false)
 const img = ref("https://i1.wp.com/gelatologia.com/wp-content/uploads/2020/07/placeholder.png?ssl=1")
 

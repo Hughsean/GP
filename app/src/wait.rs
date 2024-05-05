@@ -12,7 +12,7 @@ use common::{
 use cpal::traits::StreamTrait;
 use opencv::videoio::VideoCapture;
 use quic::Connection;
-use tauri::async_runtime::{self, Mutex, RwLock};
+use tauri::async_runtime::{self, Mutex};
 
 use crate::App;
 
@@ -50,7 +50,7 @@ pub async fn wait_inner(
     server_name: &str,
     name: &str,
     cam: Arc<std::sync::Mutex<VideoCapture>>,
-    stop: Arc<RwLock<bool>>,
+    stop: Arc<std::sync::RwLock<bool>>,
     win: tauri::Window,
 ) -> anyhow::Result<Connection> {
     let endp = make_endpoint(EndpointType::Client("0.0.0.0:0".parse()?))?;
@@ -125,11 +125,11 @@ pub async fn wait_inner(
             output_stream.play().unwrap();
             //
             let stopc = stop.clone();
-            let t1 = std::thread::spawn(move || {
+            let _t1 = std::thread::spawn(move || {
                 let _ = crate::capture_c(cam, vinput_send.clone(), stopc);
             });
             let stopc = stop.clone();
-            let t2 = std::thread::spawn(move || {
+            let _t2 = std::thread::spawn(move || {
                 let _ = crate::display_c(voutput_recv, stopc, win);
             });
 
@@ -146,7 +146,7 @@ pub async fn wait_inner(
             .await;
 
             let _ = t3.await;
-            
+
             exit(0);
             // input_stream.pause()?;
             // output_stream.pause()?;
