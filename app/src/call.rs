@@ -48,7 +48,7 @@ async fn call_inner(
     data_addr: SocketAddr,
     server_name: &str,
     name: &str,
-    cam: Arc<Mutex<VideoCapture>>,
+    cam: Arc<std::sync::Mutex<VideoCapture>>,
     stop: Arc<RwLock<bool>>,
     win: tauri::Window,
 ) -> anyhow::Result<()> {
@@ -100,12 +100,12 @@ async fn call_inner(
 
         // info!("已建立音视频连接");
         let stopc = stop.clone();
-        let t1 = async_runtime::spawn(async move {
+        let t1 = std::thread::spawn(move || {
             let _ = crate::capture_c(cam, vinput_send.clone(), stopc);
         });
         let stopc = stop.clone();
-        let t2 = async_runtime::spawn(async move {
-            let _ = crate::display_c(voutput_recv, stopc, win).await;
+        let t2 = std::thread::spawn(move || {
+            let _ = crate::display_c(voutput_recv, stopc, win);
         });
 
         let t3 = async_runtime::spawn(audio_uni(
@@ -124,8 +124,8 @@ async fn call_inner(
         input_stream.pause()?;
         output_stream.pause()?;
 
-        let _ = t1.await;
-        let _ = t2.await;
+        // let _ = t1.await;
+        // let _ = t2.await;
 
         *stop.write().await = true;
     } else {

@@ -88,15 +88,15 @@ fn test(win: tauri::Window) {
     }
 }
 
-async fn display_c(
+fn display_c(
     recv: std::sync::mpsc::Receiver<Vec<u8>>,
     stop: Arc<RwLock<bool>>,
     win: tauri::Window,
 ) -> anyhow::Result<()> {
     loop {
-        if *stop.read().await {
-            break;
-        }
+        // if *stop.read().await {
+        //     break;
+        // }
         match recv.recv() {
             Ok(data) => {
                 let buf = opencv::types::VectorOfu8::from(data);
@@ -111,18 +111,14 @@ async fn display_c(
     Ok(())
 }
 
-async fn capture_c(
-    cam: Arc<Mutex<VideoCapture>>,
+fn capture_c(
+    cam: Arc<std::sync::Mutex<VideoCapture>>,
     send: std::sync::mpsc::Sender<Vec<u8>>,
     stop: Arc<RwLock<bool>>,
 ) -> anyhow::Result<()> {
     let mut frame = Mat::default();
     loop {
-        if *stop.read().await {
-            break Ok(());
-        }
-
-        cam.lock().await.read(&mut frame)?;
+        cam.lock().unwrap().read(&mut frame)?;
         if frame.size()?.width > 0 {
             let params = opencv::types::VectorOfi32::new();
             let mut buf = opencv::types::VectorOfu8::new();
