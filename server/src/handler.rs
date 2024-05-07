@@ -98,6 +98,8 @@ async fn handle_req(
                 let ctrl = Arc::new(tokio::sync::Mutex::new(Some(ctrl_conn.clone())));
                 let ctrl_c = ctrl.clone();
                 let ctrl = Some(ctrl);
+                let clientsc = clients.clone();
+                let namec = name.clone();
                 // 客户端保活
                 tokio::spawn(async move {
                     debug!("保活线程创建");
@@ -109,18 +111,26 @@ async fn handle_req(
                         } else {
                             match ctrl_lock.clone().unwrap().open_bi().await {
                                 Ok((mut send, _)) => {
-                                    send.write_all(&wait.to_vec_u8()).await?;
-                                    send.finish().await?;
+                                    if let Err(_) = send.write_all(&wait.to_vec_u8()).await {
+                                        break;
+                                    }
+                                    if let Err(_) = send.finish().await {
+                                        break;
+                                    }
                                     debug!("发送保活信息");
                                 }
-                                Err(e) => break error!("保活线程: {e}"),
+                                Err(e) => {
+                                    break error!("保活线程: {e}");
+                                }
                             }
                         }
                         drop(ctrl_lock);
                         tokio::time::sleep(Duration::from_millis(1500)).await;
                     }
+                    if let Some(_) = clientsc.lock().await.remove(&namec) {
+                        info!("客户端{namec}主动退出等待");
+                    }
                     debug!("保活线程退出");
-                    Ok::<(), anyhow::Error>(())
                 });
 
                 clients_lock.insert(

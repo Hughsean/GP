@@ -1,6 +1,6 @@
 <template>
     <div>
-        <img style="width: 100%;" :src="img" />
+        <img style="width: 100%;" :src="img" :disable="imgdisable" />
     </div>
 </template>
 
@@ -10,8 +10,8 @@ import { listen } from '@tauri-apps/api/event';
 import { invoke } from '@tauri-apps/api';
 import { ElLoading } from 'element-plus';
 const play_disable = ref(false)
-const img = ref("https://i1.wp.com/gelatologia.com/wp-content/uploads/2020/07/placeholder.png?ssl=1")
-
+const img = ref("")
+const imgdisable = ref(true)
 
 async function play() {
     play_disable.value = true;
@@ -24,6 +24,7 @@ async function play() {
     await invoke("wait");
     let unlisten = await listen('wake', () => {
         loading.close();
+        imgdisable.value = false;
     });
 
     let unlisten2 = await listen('play_frame', (event) => {
