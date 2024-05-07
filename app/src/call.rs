@@ -31,12 +31,11 @@ pub fn call(win: tauri::Window, state: tauri::State<App>) -> Result<(), String> 
                         win,
                     )
                     .await;
-                    exit(0);
                 });
             });
             Ok(())
         }
-        None => Err("".into()),
+        None => Err("请求错误".into()),
     }
 }
 

@@ -56,11 +56,11 @@ const change = () => {
 }
 async function click() {
   if (name.value.length === 0) {
-    ElMessage.error('请输入用户名')
+    ElMessage.error('请输入用户名');
     return
   }
   if (addr.value.length === 0) {
-    ElMessage.error('请输入地址')
+    ElMessage.error('请输入地址');
     return
   }
 

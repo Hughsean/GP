@@ -8,7 +8,9 @@
 import { ref } from 'vue';
 import { listen } from '@tauri-apps/api/event';
 import { invoke } from '@tauri-apps/api';
-import { ElLoading } from 'element-plus';
+import { ElLoading, ElMessage } from 'element-plus';
+import router from '../router';
+
 const play_disable = ref(false)
 const img = ref("")
 const imgdisable = ref(true)
@@ -21,14 +23,21 @@ async function play() {
         background: 'rgba(0, 0, 0, 0.7)',
     })
 
-    await invoke("wait");
+    invoke("wait").catch(() => {
+        ElMessage.error('请求错误');
+        router.back();
+    });
+
     let unlisten = await listen('wake', () => {
         loading.close();
-        imgdisable.value = false;
+        // imgdisable.value = false;
     });
 
     let unlisten2 = await listen('play_frame', (event) => {
         img.value = "data:image/jpeg;base64," + event.payload as string;
+        if (imgdisable.value === true) {
+            imgdisable.value = false;
+        }
     });
 }
 
