@@ -222,6 +222,8 @@ async fn handle_req(
 
             let msg = Message::Response(Res::UserList(v));
             send.write_all(&msg.to_vec_u8()).await.unwrap();
+            send.finish().await?;
+            debug!("查询结束")
         }
         Message::Hello => {
             send.write_all(&Message::Response(Res::Ok).to_vec_u8())

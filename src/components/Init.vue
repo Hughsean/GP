@@ -11,22 +11,27 @@
   <p></p>
   <p></p>
   <p></p>
-  <form @submit.prevent="click">
-    <div class="row">
-      <el-radio-group v-model="mode" size="large" @change="change" style="margin-right: 5%;margin-bottom: 1%;">
-        <el-radio-button label="呼叫" value="Call" />
-        <el-radio-button label="等待" value="Wait" />
-      </el-radio-group>
+  <!-- <form> -->
+  <div class="row">
+    <el-radio-group v-model="mode" size="large" @change="change" style="margin-right: 5%;margin-bottom: 1%;">
+      <el-radio-button label="呼叫" value="Call" />
+      <el-radio-button label="等待" value="Wait" />
+    </el-radio-group>
 
-      <input v-model="name" :placeholder="placeholder" style="margin-bottom: 5px;width: 41%;" />
+    <input v-model="wait_name" placeholder="请输入您的昵称" v-show="!select_disable" style="margin-bottom: 5px;width: 41%;" />
+    <el-select v-model="call_name" placeholder="Select" size="large" style="width: 30%;margin-right: 2%;"
+      v-show="select_disable">
+      <el-option v-for="item in options" :key="item" :label="item" :value="item" />
+    </el-select>
+    <button style="width: 15%;margin-bottom: 5px;" v-show="select_disable" @click="refresh">刷新</button>
 
-    </div>
-    <div class="row">
-      <input v-model="addr" placeholder="输入服务器地址" style="width: 49%;" />
-      <p style="width: 1%;"></p>
-      <button type="submit" style="width: 15%;">确定</button>
-    </div>
-  </form>
+  </div>
+  <div class="row">
+    <input v-model="addr" placeholder="输入服务器地址" style="width: 49%;" />
+    <p style="width: 1%;"></p>
+    <button @click="click" style="width: 15%;">确定</button>
+  </div>
+  <!-- </form> -->
 
 </template>
 
@@ -38,23 +43,55 @@ import { ElLoading } from 'element-plus'
 import { ElMessage } from 'element-plus'
 import router from "../router";
 
+
 // 用户名
-const name = ref("");
+const wait_name = ref("");
+const call_name = ref("");
 // 服务器地址
 const addr = ref("127.0.0.1");
 
-const mode = ref("Call")
-const placeholder = ref("输入被呼叫用户名")
+const mode = ref("Call");
+
+const select_disable = ref(true);
+
+const options = ref<[string]>()
 
 const change = () => {
-  // name.value = ""
   if (mode.value === "Call") {
-    placeholder.value = "输入被呼叫用户名"
+    // placeholder.value = "输入被呼叫用户名"
+    select_disable.value = true;
   } else {
-    placeholder.value = "输入您的用户名"
+    // placeholder.value = "输入您的用户名"
+    select_disable.value = false;
   }
 }
+
+async function refresh() {
+  console.log(call_name.value);
+  call_name.value='';
+  
+  invoke(
+    "query", { addr: addr.value }
+  ).then((ret) => {
+    ElMessage({
+      message: '查询成功',
+      type: 'success',
+    });
+    options.value = ret as [string];
+  }).catch((e) => {
+    ElMessage.error('错误: ' + e)
+  });
+}
+
 async function click() {
+  let name;
+
+  if (mode.value === "Call") {
+    name = call_name;
+  } else {
+    name = wait_name;
+  }
+
   if (name.value.length === 0) {
     ElMessage.error('请输入用户名');
     return
@@ -84,7 +121,7 @@ async function click() {
 
 
   }).catch((e) => {
-    ElMessage.error('错误' + e)
+    ElMessage.error('错误: ' + e)
   }).finally(() => {
     // 关闭Loading
     loading.close()

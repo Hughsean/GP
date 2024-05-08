@@ -27,7 +27,9 @@ fn main() {
 
     tauri::Builder::default()
         .manage(state)
-        .invoke_handler(tauri::generate_handler![init, wait, close, test, call])
+        .invoke_handler(tauri::generate_handler![
+            init, wait, call, query, close, test
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
@@ -74,18 +76,47 @@ fn init(addr: &str, name: &str, state: tauri::State<App>) -> Result<(), String> 
 }
 
 #[tauri::command]
-/// 初始化
 fn close() {
     exit(0);
 }
 
 #[tauri::command]
-/// 初始化
 fn test(win: tauri::Window) {
     for _ in 0..10 {
         win.emit("test", ()).unwrap();
         sleep(Duration::from_secs(1));
     }
+}
+
+#[tauri::command]
+fn query(addr: &str) -> Result<Vec<String>, String> {
+    tauri::async_runtime::block_on(async {
+        let ctrl_addr = String::from(addr) + ":12345";
+
+        let ctrl_addr: SocketAddr = ctrl_addr.parse()?;
+        let endp = make_endpoint(EndpointType::Client("0.0.0.0:0".parse()?))?;
+
+        let (mut s, mut r) = endp
+            .connect(ctrl_addr, "localhost")?
+            .await?
+            .open_bi()
+            .await?;
+
+        s.write_all(&Message::QueryUsers.to_vec_u8()).await?;
+        s.finish().await?;
+
+        let res = r.read_to_end(usize::MAX).await?;
+
+        let msg = serde_json::from_slice::<Message>(&res)?;
+
+        if let Message::Response(Res::UserList(users)) = msg {
+            println!("OK");
+            Ok(users)
+        } else {
+            Err(anyhow::anyhow!("响应错误"))
+        }
+    })
+    .or(Err("连接错误".into()))
 }
 
 fn display_c(
