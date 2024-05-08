@@ -6,11 +6,9 @@ use quic::Endpoint;
 fn quic_connection(c: &mut Criterion) {
     fn fun(endp: &Endpoint, rt: &tokio::runtime::Runtime) {
         rt.block_on(async {
-            match endp
-                .connect("122.51.128.39:12345".parse().unwrap(), "localhost")
-            {
+            match endp.connect("122.51.128.39:12345".parse().unwrap(), "localhost") {
                 Ok(c) => {
-                   let _con =c.await.unwrap();
+                    let _con = c.await.unwrap();
                 }
                 Err(_) => {
                     // let _conn = c.await.unwrap();
@@ -19,7 +17,7 @@ fn quic_connection(c: &mut Criterion) {
         });
     }
 
-    c.bench_function("QUIC connection", move |b| {
+    c.bench_function("QUIC", move |b| {
         b.iter_custom(|i| {
             let rt = tokio::runtime::Builder::new_current_thread()
                 .enable_all()
@@ -59,7 +57,7 @@ fn tcp_connection(c: &mut Criterion) {
         });
     }
 
-    c.bench_function("TCP connection", move |b| {
+    c.bench_function("TLS over TCP", move |b| {
         b.iter_custom(|i| {
             let rt = tokio::runtime::Builder::new_current_thread()
                 .enable_all()

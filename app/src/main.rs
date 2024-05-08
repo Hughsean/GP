@@ -17,12 +17,12 @@ use opencv::{
 use wait::wait;
 
 struct App {
-    pub client: std::sync::Mutex<Option<Client>>,
+    pub client: Arc<std::sync::Mutex<Option<Client>>>,
 }
 
 fn main() {
     let state = App {
-        client: std::sync::Mutex::new(None),
+        client: Arc::new(std::sync::Mutex::new(None)),
     };
 
     tauri::Builder::default()
@@ -39,40 +39,88 @@ mod wait;
 
 #[tauri::command]
 /// 初始化
-fn init(addr: &str, name: &str, state: tauri::State<App>) -> Result<(), String> {
-    tauri::async_runtime::block_on(async {
-        let ctrl_addr = String::from(addr) + ":12345";
-        let data_addr = String::from(addr) + ":12346";
+fn init(addr: &str, name: &str, state: tauri::State<App>, win: tauri::Window) {
+    let addr = addr.to_string();
+    let name = name.to_string();
+    let arc = state.client.clone();
 
-        let ctrl_addr: SocketAddr = ctrl_addr.parse()?;
-        let data_addr: SocketAddr = data_addr.parse()?;
-        let endp = make_endpoint(EndpointType::Client("0.0.0.0:0".parse()?))?;
+    tauri::async_runtime::spawn(async move {
+        let r = async {
+            let ctrl_addr = addr.clone() + ":12345";
+            let data_addr = addr + ":12346";
 
-        let (mut s, mut r) = endp
-            .connect(ctrl_addr, "localhost")?
-            .await?
-            .open_bi()
-            .await?;
+            let ctrl_addr: SocketAddr = ctrl_addr.parse()?;
+            let data_addr: SocketAddr = data_addr.parse()?;
+            let endp = make_endpoint(EndpointType::Client("0.0.0.0:0".parse()?))?;
 
-        s.write_all(&Message::Hello.to_vec_u8()).await?;
-        s.finish().await?;
+            let (mut s, mut r) = endp
+                .connect(ctrl_addr, "localhost")?
+                .await?
+                .open_bi()
+                .await?;
 
-        let res = r.read_to_end(usize::MAX).await?;
+            s.write_all(&Message::Hello.to_vec_u8()).await?;
+            s.finish().await?;
 
-        let msg = serde_json::from_slice::<Message>(&res)?;
+            let res = r.read_to_end(usize::MAX).await?;
 
-        if let Message::Response(Res::Ok) = msg {
-            if state.client.lock().unwrap().is_none() {
-                let client = client::Client::new(ctrl_addr, data_addr, name.into())?;
-                state.client.lock().unwrap().replace(client);
+            let msg = serde_json::from_slice::<Message>(&res)?;
+
+            if let Message::Response(Res::Ok) = msg {
+                if arc.lock().unwrap().is_none() {
+                    let client = client::Client::new(ctrl_addr, data_addr, name.into())?;
+                    arc.lock().unwrap().replace(client);
+                }
+
+                Ok(())
+            } else {
+                Err(anyhow::anyhow!(""))
             }
-            anyhow::Ok(())
-        } else {
-            Err(anyhow::anyhow!("响应错误"))
         }
-    })
-    .or(Err("连接测试错误"))?;
-    Ok(())
+        .await;
+
+        match r {
+            Ok(_) => win.emit("init", ()).unwrap(),
+            Err(_) => win.emit("err", ()).unwrap(),
+        }
+    });
+}
+
+#[tauri::command]
+fn query(addr: &str, win: tauri::Window) {
+    let addr = addr.to_string();
+    tauri::async_runtime::spawn(async move {
+        let r = async {
+            let ctrl_addr = String::from(addr) + ":12345";
+            let ctrl_addr: SocketAddr = ctrl_addr.parse()?;
+            let endp = make_endpoint(EndpointType::Client("0.0.0.0:0".parse()?))?;
+
+            let (mut s, mut r) = endp
+                .connect(ctrl_addr, "localhost")?
+                .await?
+                .open_bi()
+                .await?;
+
+            s.write_all(&Message::QueryUsers.to_vec_u8()).await?;
+            s.finish().await?;
+
+            let res = r.read_to_end(usize::MAX).await?;
+
+            let msg = serde_json::from_slice::<Message>(&res)?;
+
+            if let Message::Response(Res::UserList(users)) = msg {
+                Ok(users)
+            } else {
+                Err(anyhow::anyhow!(""))
+            }
+        }
+        .await;
+
+        match r {
+            Ok(users) => win.emit("query", users).unwrap(),
+            Err(_) => win.emit("err", ()).unwrap(),
+        }
+    });
 }
 
 #[tauri::command]
@@ -86,37 +134,6 @@ fn test(win: tauri::Window) {
         win.emit("test", ()).unwrap();
         sleep(Duration::from_secs(1));
     }
-}
-
-#[tauri::command]
-fn query(addr: &str) -> Result<Vec<String>, String> {
-    tauri::async_runtime::block_on(async {
-        let ctrl_addr = String::from(addr) + ":12345";
-
-        let ctrl_addr: SocketAddr = ctrl_addr.parse()?;
-        let endp = make_endpoint(EndpointType::Client("0.0.0.0:0".parse()?))?;
-
-        let (mut s, mut r) = endp
-            .connect(ctrl_addr, "localhost")?
-            .await?
-            .open_bi()
-            .await?;
-
-        s.write_all(&Message::QueryUsers.to_vec_u8()).await?;
-        s.finish().await?;
-
-        let res = r.read_to_end(usize::MAX).await?;
-
-        let msg = serde_json::from_slice::<Message>(&res)?;
-
-        if let Message::Response(Res::UserList(users)) = msg {
-            println!("OK");
-            Ok(users)
-        } else {
-            Err(anyhow::anyhow!("响应错误"))
-        }
-    })
-    .or(Err("连接错误".into()))
 }
 
 fn display_c(

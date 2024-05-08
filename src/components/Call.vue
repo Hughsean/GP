@@ -19,16 +19,16 @@ const imgdisable = ref(true)
 async function play() {
     play_disable.value = true;
 
-    invoke("call").catch(() => {
-        ElMessage.error('请求错误');
-        router.back();
-    });
-
     let unlisten = await listen('play_frame', (event) => {
         img.value = "data:image/jpeg;base64," + event.payload as string;
         if (imgdisable.value === true) {
             imgdisable.value = false;
         }
+    });
+    
+    invoke("call").catch(() => {
+        ElMessage.error('请求错误');
+        router.back();
     });
 }
 

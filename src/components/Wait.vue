@@ -23,10 +23,7 @@ async function play() {
         background: 'rgba(0, 0, 0, 0.7)',
     })
 
-    invoke("wait").catch(() => {
-        ElMessage.error('请求错误');
-        router.back();
-    });
+    
 
     let unlisten = await listen('wake', () => {
         loading.close();
@@ -38,6 +35,11 @@ async function play() {
         if (imgdisable.value === true) {
             imgdisable.value = false;
         }
+    });
+    
+    invoke("wait").catch(() => {
+        ElMessage.error('请求错误');
+        router.back();
     });
 }
 

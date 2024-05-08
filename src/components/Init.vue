@@ -29,7 +29,7 @@
   <div class="row">
     <input v-model="addr" placeholder="输入服务器地址" style="width: 49%;" />
     <p style="width: 1%;"></p>
-    <button @click="click" style="width: 15%;">确定</button>
+    <button @click="init" style="width: 15%;">确定</button>
   </div>
   <!-- </form> -->
 
@@ -42,6 +42,7 @@ import { invoke } from "@tauri-apps/api/tauri";
 import { ElLoading } from 'element-plus'
 import { ElMessage } from 'element-plus'
 import router from "../router";
+import { once } from "@tauri-apps/api/event";
 
 
 // 用户名
@@ -68,22 +69,43 @@ const change = () => {
 
 async function refresh() {
   console.log(call_name.value);
-  call_name.value='';
-  
-  invoke(
-    "query", { addr: addr.value }
-  ).then((ret) => {
-    ElMessage({
-      message: '查询成功',
-      type: 'success',
-    });
-    options.value = ret as [string];
-  }).catch((e) => {
-    ElMessage.error('错误: ' + e)
+  call_name.value = '';
+
+  const loading = ElLoading.service({
+    lock: true,
+    text: '获取数据中',
+    background: 'rgba(0, 0, 0, 0.7)',
+  })
+
+
+
+  let unlisten1 = await once('query', (e) => {
+    unlisten2();
+    options.value = e.payload as [string];
+    loading.close();
   });
+
+  let unlisten2 = await once('err', () => {
+    unlisten1();
+    ElMessage.error('连接错误');
+    loading.close();
+  });
+
+  await invoke(
+    "query", { addr: addr.value }
+  );
+  // .then((ret) => {
+  //   ElMessage({
+  //     message: '查询成功',
+  //     type: 'success',
+  //   });
+  //   options.value = ret as [string];
+  // }).catch((e) => {
+  //   ElMessage.error('错误: ' + e)
+  // });
 }
 
-async function click() {
+async function init() {
   let name;
 
   if (mode.value === "Call") {
@@ -108,24 +130,39 @@ async function click() {
     background: 'rgba(0, 0, 0, 0.7)',
   })
 
-  invoke(
-    "init", { addr: addr.value, name: name.value }
-  ).then(() => {
+
+  let unlisten1 = await once('init', () => {
+    unlisten2();
+    loading.close();
     ElMessage({
-      message: '连接测试成功',
+      message: '初始化成功',
       type: 'success',
     });
-    // 跳转页面
-
     router.push("/" + mode.value);
-
-
-  }).catch((e) => {
-    ElMessage.error('错误: ' + e)
-  }).finally(() => {
-    // 关闭Loading
-    loading.close()
   });
+
+  let unlisten2 = await once('err', () => {
+    unlisten1();
+    ElMessage.error('连接错误');
+    loading.close();
+  });
+
+  await invoke(
+    "init", { addr: addr.value, name: name.value }
+  );
+  // .then(() => {
+  //   ElMessage({
+  //     message: '连接测试成功',
+  //     type: 'success',
+  //   });
+  //   // 跳转页面
+  //   router.push("/" + mode.value);
+  // }).catch((e) => {
+  //   ElMessage.error('错误: ' + e)
+  // }).finally(() => {
+  //   // 关闭Loading
+  //   loading.close()
+  // });
 
 }
 
