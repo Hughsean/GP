@@ -12,6 +12,7 @@ tokio = { version = "1.37.0", features = ["macros", "rt-multi-thread", "io-util"
 anyhow = "1.0.81"
 rustls = { version = "0.21.0", default-features = false }
 quic = { package = "quinn", version = "0.10.2" }
+# quic = { package = "quinn", version = "0.11" }
 
 tokio-rustls = "0.23.1"
 tokio-native-tls = "0.3.0"

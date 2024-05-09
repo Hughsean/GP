@@ -1,43 +1,39 @@
-use std::{fs, sync::Arc};
-
-use tokio::io::AsyncWriteExt;
+use std::fs;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
 use tokio_rustls::TlsAcceptor;
 
-use crate::make_endpoint;
+use crate::{make_endpoint, Message};
 
+const BUF_SIZE: usize = 1024 * 10;
 pub async fn transmission() {
-    let data = Arc::new(vec![0; 1024 * 10]);
-    println!("{}", data.len());
-
+    // let mut buf = [0u8; BUF_SIZE];
     let endp = make_endpoint("0.0.0.0:12347".parse().unwrap()).unwrap();
 
-    let datac = data.clone();
     let t1 = tokio::spawn(async move {
-        loop {
-            let data = datac.clone();
-            let conn = endp.accept().await.unwrap().await.unwrap();
-            tokio::spawn(async move {
-                let e = async {
-                    loop {
-                        let s = conn.open_uni().await;
-                        match s {
-                            Ok(mut s) => {
-                                // println!("send");
-                                s.write_all(&data).await?;
-                                s.finish().await?;
-                            }
-                            Err(_e) => {
-                                // println!("{e}");
-                                break anyhow::Ok(());
-                            }
-                        }
+        let buf = [0u8; BUF_SIZE];
+
+        let conn = endp.accept().await.unwrap().await.unwrap();
+        tokio::spawn(async move {
+            loop {
+                let t = conn.accept_bi().await;
+
+                if let Ok((mut s, mut r)) = t {
+                    let recv = r.read_to_end(usize::MAX).await.unwrap();
+
+                    let req = serde_json::from_slice::<Message>(&recv).unwrap();
+
+                    if let Message::Hello = req {
+                        s.write_all(&buf).await.unwrap();
+
+                        s.finish().await.unwrap();
                     }
-                }
-                .await;
-                println!("{:?}", e)
-            });
-        }
+                } else {
+                    break println!("Err");
+                };
+                // anyhow::Ok(())
+            }
+        });
     });
 
     let addr = "0.0.0.0:12348".to_string();
@@ -61,27 +57,41 @@ pub async fn transmission() {
     let acceptor = TlsAcceptor::from(std::sync::Arc::new(config));
 
     // let data=data.clone();
+
     let t2 = tokio::spawn(async move {
         loop {
-            let data = data.clone();
+            // let data = data.clone();
             let (stream, _) = listener.accept().await.unwrap();
 
             let mut tls_stream = acceptor.accept(stream).await.expect("Failed to accept");
 
             tokio::spawn(async move {
-                let _ = async {
-                    let e = async {
-                        loop {
-                            tls_stream.write_all(&data).await?;
-                            if tls_stream.flush().await.is_err() {
-                                break anyhow::Ok(());
-                            };
+                let mut buf = [0u8; BUF_SIZE];
+
+                // let _ = async {
+                loop {
+                    // if tls_stream.write_all(&buf).await.is_err() {
+                    //     break;
+                    // }
+                    let len = tls_stream.read_u64().await;
+                    if let Ok(len) = len {
+                        let _s = tls_stream
+                            .read_exact(&mut buf[..len as usize])
+                            .await
+                            .unwrap();
+
+                        let req = serde_json::from_slice::<Message>(&buf[..len as usize]).unwrap();
+
+                        if let Message::Hello = req {
+                            tls_stream.write_all(&buf).await.unwrap();
+                            tls_stream.flush().await.unwrap();
                         }
+                    } else {
+                        break println!("tcp exit");
                     }
-                    .await;
-                    println!("{e:?}")
                 }
-                .await;
+                // }
+                // .await;
             });
         }
     });
