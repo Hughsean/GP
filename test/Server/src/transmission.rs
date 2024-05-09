@@ -5,7 +5,7 @@ use tokio_rustls::TlsAcceptor;
 
 use crate::{make_endpoint, Message};
 
-const BUF_SIZE: usize = 1024 * 10;
+const BUF_SIZE: usize = 1024;
 pub async fn transmission() {
     // let mut buf = [0u8; BUF_SIZE];
     let endp = make_endpoint("0.0.0.0:12347".parse().unwrap()).unwrap();

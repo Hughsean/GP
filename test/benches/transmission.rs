@@ -9,7 +9,7 @@ use tokio::net::TcpStream;
 use tokio::runtime::Runtime;
 use tokio_rustls::client::TlsStream;
 
-const BUF_SIZE: usize = 1024 * 10;
+const BUF_SIZE: usize = 1024;
 
 #[derive(Clone, Copy)]
 struct InputQuic<'a>(&'a Runtime, &'a Connection);
@@ -91,11 +91,8 @@ pub fn quic_data_recv(c: &mut Criterion) {
         });
     }
 
-    c.bench_with_input(
-        criterion::BenchmarkId::new("QUIC data req", input),
-        &input,
-        |b, i| b.iter(|| fun(i)),
-    );
+    
+    c.bench_function("QUIC data req", |b| b.iter(|| fun(&input)));
 }
 
 pub fn tcp_data_recv(c: &mut Criterion) {
@@ -150,9 +147,6 @@ pub fn tcp_data_recv(c: &mut Criterion) {
             // println!("{}", ip.2.len());
         });
     }
-    c.bench_with_input(
-        criterion::BenchmarkId::new("TLS over TCP data req", input.clone()),
-        &input,
-        |b, i| b.iter(|| fun(i.clone())),
-    );
+
+    c.bench_function("TLS over TCP data req", |b| b.iter(|| fun(input.clone())));
 }
