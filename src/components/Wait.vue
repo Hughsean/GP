@@ -11,19 +11,17 @@ import { invoke } from '@tauri-apps/api';
 import { ElLoading, ElMessage } from 'element-plus';
 import router from '../router';
 
-const play_disable = ref(false)
 const img = ref("")
 const imgdisable = ref(true)
 
 async function play() {
-    play_disable.value = true;
     const loading = ElLoading.service({
         lock: true,
         text: '等待中',
         background: 'rgba(0, 0, 0, 0.7)',
     })
 
-    
+
 
     let unlisten = await listen('wake', () => {
         loading.close();
@@ -36,7 +34,7 @@ async function play() {
             imgdisable.value = false;
         }
     });
-    
+
     invoke("wait").catch(() => {
         ElMessage.error('请求错误');
         router.back();

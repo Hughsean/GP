@@ -138,7 +138,7 @@ async function init() {
       message: '初始化成功',
       type: 'success',
     });
-    router.push("/" + mode.value);
+    router.replace("/" + mode.value);
   });
 
   let unlisten2 = await once('err', () => {

@@ -1,5 +1,5 @@
 <template>
-    <div class="row">
+    <div>
         <img style="width: 100%;" :src="img" :disable="imgdisable" />
     </div>
 </template>
@@ -11,13 +11,11 @@ import { invoke } from '@tauri-apps/api';
 import router from '../router';
 import { ElMessage } from 'element-plus';
 
-const play_disable = ref(false)
 const img = ref("")
 const imgdisable = ref(true)
 
 
 async function play() {
-    play_disable.value = true;
 
     let unlisten = await listen('play_frame', (event) => {
         img.value = "data:image/jpeg;base64," + event.payload as string;
@@ -25,7 +23,7 @@ async function play() {
             imgdisable.value = false;
         }
     });
-    
+
     invoke("call").catch(() => {
         ElMessage.error('请求错误');
         router.back();
