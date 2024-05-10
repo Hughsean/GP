@@ -20,11 +20,11 @@
 
     <input v-model="wait_name" placeholder="请输入您的昵称" v-show="!select_disable" style="width: 45%;" />
 
-    <el-select v-model="call_name" placeholder="选择被呼叫用户" style="width: 29%;margin-right: 1%;" v-show="select_disable"
-      size="large">
+    <el-select v-model="call_name" placeholder="选择被呼叫的用户" style="width: 45%;" v-show="select_disable" size="large"
+      @focus="refresh" :loading="select_loading">
       <el-option v-for="item in options" :key="item" :label="item" :value="item" />
     </el-select>
-    <button style="width: 15%;" v-show="select_disable" @click="refresh">刷新</button>
+    <!-- <button style="width: 15%;" v-show="select_disable" @click="refresh">刷新</button> -->
   </div>
 
   <div class="row">
@@ -55,6 +55,8 @@ const select_disable = ref(true);
 
 const options = ref<[string]>()
 
+const select_loading = ref(false)
+
 const change = () => {
   if (mode.value === "Call") {
     // placeholder.value = "输入被呼叫用户名"
@@ -66,27 +68,32 @@ const change = () => {
 }
 
 async function refresh() {
+  select_loading.value = true;
+
   console.log(call_name.value);
   call_name.value = '';
 
-  const loading = ElLoading.service({
-    lock: true,
-    text: '获取数据中',
-    background: 'rgba(0, 0, 0, 0.7)',
-  })
+  // const loading = ElLoading.service({
+  //   lock: true,
+  //   text: '获取数据中',
+  //   background: 'rgba(0, 0, 0, 0.7)',
+  // })
 
 
 
   let unlisten1 = await once('query', (e) => {
     unlisten2();
     options.value = e.payload as [string];
-    loading.close();
+    // loading.close();
+    select_loading.value = false;
   });
 
   let unlisten2 = await once('err', (e) => {
     unlisten1();
     ElMessage.error('错误: ' + e.payload);
-    loading.close();
+    // loading.close();
+    select_loading.value = false;
+
   });
 
   await invoke(
