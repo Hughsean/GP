@@ -23,7 +23,8 @@
         "width": 750,
         "height": 515,
         "resizable": false,
-        "center": true
+        "center": true,
+        "visible": false
       }
     ],
     "bundle": {
@@ -39,7 +40,7 @@
       ],
       "shortDescription": "QUIC-based audio and video communication client.",
       "longDescription": "QUIC-based audio and video communication client.",
-             "copyright": "© 2024 凤旭昇. All Rights Reserved."
+      "copyright": "© 2024 凤旭昇. All Rights Reserved."
     }
   }
 }

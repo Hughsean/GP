@@ -26,6 +26,15 @@ fn main() {
     };
 
     tauri::Builder::default()
+        .setup(|app| {
+            let main_window = tauri::Manager::get_window(app, "main").unwrap();
+            tauri::async_runtime::spawn(async move {
+                std::thread::sleep(std::time::Duration::from_millis(600));
+                main_window.show().unwrap();
+            });
+
+            Ok(())
+        })
         .manage(state)
         .invoke_handler(tauri::generate_handler![
             init, wait, call, query, close, test
