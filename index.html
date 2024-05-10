@@ -1,20 +1,35 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Tauri + Vue + TS</title>
-  </head>
 
-  <body>
-    <div id="app"></div>
-    <script type="module" src="/src/main.ts"></script>
-    <script type="text/javascript">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tauri + Vue + TS</title>
+</head>
+<style>
+  html,
+  body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+  }
+
+  .fullDiv {
+    width: 100%;
+    height: 100%;
+  }
+</style>
+
+<body>
+  <div id="app" class="fullDiv"></div>
+  <script type="module" src="/src/main.ts"></script>
+  <!-- <script type="text/javascript">
       function stop() {
           return false;
       }
       document.oncontextmenu = stop;
-  </script>
-  </body>
+  </script> -->
+</body>
+
 </html>
