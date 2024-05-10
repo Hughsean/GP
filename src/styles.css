@@ -27,7 +27,7 @@ h1 {
   text-align: center;
 }
 
-input,
+/* input,
 button {
   border-radius: 8px;
   border: 1px solid transparent;
@@ -39,6 +39,25 @@ button {
   background-color: #ffffff;
   transition: border-color 0.25s;
   box-shadow: 0 2px 2px rgba(0, 0, 0, 0.2);
+} */
+input,
+button {
+  height: 40px;
+  padding: 0 10px;
+  /* Add padding if needed */
+  font-size: 16px;
+  border: 1px solid #ccc;
+  /* Add border if needed */
+  border-radius: 5px;
+  /* Add border radius if needed */
+  box-sizing: border-box;
+  /* Include padding and border in the element's total width and height */
+  transition: border-color 0.25s;
+  box-shadow: 0 2px 2px rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  border: 1px solid transparent;
+  color: #0f0f0f;
+  background-color: #ffffff;
 }
 
 button {
@@ -48,6 +67,7 @@ button {
 button:hover {
   border-color: #396cd8;
 }
+
 button:active {
   border-color: #396cd8;
   background-color: #e8e8e8;
@@ -61,6 +81,7 @@ input:hover {
 input,
 button {
   outline: none;
+  /* height: 42px 42px; */
 }
 
 
@@ -80,6 +101,7 @@ button {
     color: #ffffff;
     background-color: #0f0f0f98;
   }
+
   button:active {
     background-color: #0f0f0f69;
   }

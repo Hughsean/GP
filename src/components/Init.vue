@@ -12,27 +12,29 @@
   <p></p>
   <p></p>
   <!-- <form> -->
+
+  <!-- <div style="height: 1%;">-</div> -->
   <div class="row">
-    <el-radio-group v-model="mode" size="large" @change="change" style="margin-right: 5%;margin-bottom: 1%;">
+    <input v-model="addr" placeholder="输入服务器地址" style="width: 49%;margin-right: 1%;margin-bottom: 1%;" />
+    <!-- <p style="width: 1%;"></p> -->
+    <button @click="init" style="width: 15%;margin-bottom: 1%;">确定</button>
+  </div>
+  <!-- </form> -->
+  <div class="row">
+    <el-radio-group size="large" v-model="mode" @change="change" style=" width: 20%;">
       <el-radio-button label="呼叫" value="Call" />
       <el-radio-button label="等待" value="Wait" />
     </el-radio-group>
 
-    <input v-model="wait_name" placeholder="请输入您的昵称" v-show="!select_disable" style="margin-bottom: 5px;width: 41%;" />
-    <el-select v-model="call_name" placeholder="Select" size="large" style="width: 30%;margin-right: 2%;"
-      v-show="select_disable">
+    <input v-model="wait_name" placeholder="请输入您的昵称" v-show="!select_disable" style="width: 45%;" />
+
+    <el-select v-model="call_name" placeholder="选择被呼叫用户" style="width: 29%;margin-right: 1%;" v-show="select_disable"
+      size="large">
       <el-option v-for="item in options" :key="item" :label="item" :value="item" />
     </el-select>
-    <button style="width: 15%;margin-bottom: 5px;" v-show="select_disable" @click="refresh">刷新</button>
+    <button style="width: 15%;" v-show="select_disable" @click="refresh">刷新</button>
 
   </div>
-  <div class="row">
-    <input v-model="addr" placeholder="输入服务器地址" style="width: 49%;" />
-    <p style="width: 1%;"></p>
-    <button @click="init" style="width: 15%;">确定</button>
-  </div>
-  <!-- </form> -->
-
 </template>
 
 

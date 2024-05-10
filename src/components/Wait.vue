@@ -1,6 +1,7 @@
 <template>
     <div>
-        <img style="width: 100%;" :src="img" :disable="imgdisable" />
+        <img style="width: 99%;border-radius: 8px;border: 1px solid transparent;margin-top: 1%;" :src="img"
+            :disable="imgdisable" />
     </div>
 </template>
 
