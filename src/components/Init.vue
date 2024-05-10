@@ -11,15 +11,7 @@
   <p></p>
   <p></p>
   <p></p>
-  <!-- <form> -->
 
-  <!-- <div style="height: 1%;">-</div> -->
-  <div class="row">
-    <input v-model="addr" placeholder="输入服务器地址" style="width: 49%;margin-right: 1%;margin-bottom: 1%;" />
-    <!-- <p style="width: 1%;"></p> -->
-    <button @click="init" style="width: 15%;margin-bottom: 1%;">确定</button>
-  </div>
-  <!-- </form> -->
   <div class="row">
     <el-radio-group size="large" v-model="mode" @change="change" style=" width: 20%;">
       <el-radio-button label="呼叫" value="Call" />
@@ -33,7 +25,11 @@
       <el-option v-for="item in options" :key="item" :label="item" :value="item" />
     </el-select>
     <button style="width: 15%;" v-show="select_disable" @click="refresh">刷新</button>
+  </div>
 
+  <div class="row">
+    <input v-model="addr" placeholder="输入服务器地址" style="width: 49%;margin-right: 1%;margin-top: 1%;" />
+    <button @click="init" style="width: 15%;margin-top: 1%;">确定</button>
   </div>
 </template>
 
