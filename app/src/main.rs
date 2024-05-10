@@ -29,7 +29,7 @@ fn main() {
         .setup(|app| {
             let main_window = tauri::Manager::get_window(app, "main").unwrap();
             tauri::async_runtime::spawn(async move {
-                std::thread::sleep(std::time::Duration::from_millis(600));
+                std::thread::sleep(std::time::Duration::from_millis(500));
                 main_window.show().unwrap();
             });
 

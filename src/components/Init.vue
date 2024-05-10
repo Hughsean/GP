@@ -21,7 +21,7 @@
     <input v-model="wait_name" placeholder="请输入您的昵称" v-show="!select_disable" style="width: 45%;" />
 
     <el-select v-model="call_name" placeholder="选择被呼叫的用户" style="width: 45%;" v-show="select_disable" size="large"
-      @focus="refresh" :loading="select_loading">
+      @visible-change="refresh" :loading="select_loading">
       <el-option v-for="item in options" :key="item" :label="item" :value="item" />
     </el-select>
     <!-- <button style="width: 15%;" v-show="select_disable" @click="refresh">刷新</button> -->
@@ -67,7 +67,10 @@ const change = () => {
   }
 }
 
-async function refresh() {
+async function refresh(v: boolean) {
+  if (!v) {
+    return;
+  }
   select_loading.value = true;
 
   console.log(call_name.value);
