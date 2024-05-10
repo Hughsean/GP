@@ -81,7 +81,7 @@ fn init(addr: &str, name: &str, state: tauri::State<App>, win: tauri::Window) {
 
         match r {
             Ok(_) => win.emit("init", ()).unwrap(),
-            Err(_) => win.emit("err", ()).unwrap(),
+            Err(e) => win.emit("err", e.to_string()).unwrap(),
         }
     });
 }
@@ -118,7 +118,7 @@ fn query(addr: &str, win: tauri::Window) {
 
         match r {
             Ok(users) => win.emit("query", users).unwrap(),
-            Err(_) => win.emit("err", ()).unwrap(),
+            Err(e) => win.emit("err", e.to_string()).unwrap(),
         }
     });
 }

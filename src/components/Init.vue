@@ -85,9 +85,9 @@ async function refresh() {
     loading.close();
   });
 
-  let unlisten2 = await once('err', () => {
+  let unlisten2 = await once('err', (e) => {
     unlisten1();
-    ElMessage.error('连接错误');
+    ElMessage.error('错误: ' + e.payload);
     loading.close();
   });
 
@@ -141,9 +141,9 @@ async function init() {
     router.replace("/" + mode.value);
   });
 
-  let unlisten2 = await once('err', () => {
+  let unlisten2 = await once('err', (e) => {
     unlisten1();
-    ElMessage.error('连接错误');
+    ElMessage.error('错误: ' + e.payload);
     loading.close();
   });
 
