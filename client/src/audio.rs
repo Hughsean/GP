@@ -41,7 +41,10 @@ pub fn make_output_stream(recv: std::sync::mpsc::Receiver<Vec<f32>>) -> cpal::St
         .build_output_stream(
             &config,
             move |data: &mut [f32], _info| match recv.recv() {
-                Ok(recv_data) => data[0..recv_data.len()].copy_from_slice(&recv_data),
+                Ok(recv_data) => {
+                    let min_len = data.len().min(recv_data.len());
+                    data[..min_len].copy_from_slice(&recv_data[..min_len])
+                }
                 Err(e) => error!("{}", e.to_string()),
             },
             |err| eprintln!("Error during stream: {:?}", err),
