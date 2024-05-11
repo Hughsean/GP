@@ -5,10 +5,10 @@ use crate::{
 use anyhow::anyhow;
 use cpal::traits::StreamTrait;
 
+use common::message::{Message, Res};
 use quic::Endpoint;
 use std::{net::SocketAddr, sync::Arc};
 use tracing::{debug, info};
-use common::message::{Res, Message};
 
 pub async fn call(
     endp: Endpoint,
@@ -20,8 +20,8 @@ pub async fn call(
     name: &str,
 ) -> anyhow::Result<()> {
     //---------------------
-    let (ainput_send, ainput_recv) = std::sync::mpsc::channel::<Vec<f32>>();
-    let (aoutput_send, aoutput_recv) = std::sync::mpsc::channel::<Vec<f32>>();
+    let (ainput_send, ainput_recv) = std::sync::mpsc::sync_channel::<Vec<f32>>(1);
+    let (aoutput_send, aoutput_recv) = std::sync::mpsc::sync_channel::<Vec<f32>>(1);
 
     let ainput_recv_a = Arc::new(tokio::sync::Mutex::new(ainput_recv));
     let aoutput_send_a = Arc::new(tokio::sync::Mutex::new(aoutput_send.clone()));
@@ -34,8 +34,8 @@ pub async fn call(
     // 视频设备
     let mut cam = make_cam()?;
     info!("摄像头启动");
-    let (vinput_send, vinput_recv) = std::sync::mpsc::channel::<Vec<u8>>();
-    let (voutput_send, voutput_recv) = std::sync::mpsc::channel::<Vec<u8>>();
+    let (vinput_send, vinput_recv) = std::sync::mpsc::sync_channel::<Vec<u8>>(1);
+    let (voutput_send, voutput_recv) = std::sync::mpsc::sync_channel::<Vec<u8>>(1);
     let vinput_recv_a = Arc::new(tokio::sync::Mutex::new(vinput_recv));
     let voutput_send_a = Arc::new(tokio::sync::Mutex::new(voutput_send.clone()));
     /////////////////////////////////////////////

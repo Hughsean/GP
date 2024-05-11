@@ -1,14 +1,13 @@
-use common::vf32_to_vu8;
 use cpal::{
     traits::{DeviceTrait, HostTrait, StreamTrait},
     StreamConfig,
 };
 use std::{
-    sync::mpsc::{self, Sender},
+    sync::mpsc::{self, Sender, SyncSender},
     thread,
 };
 
-fn record(sender: Sender<Vec<f32>>) {
+fn record(sender: SyncSender<Vec<f32>>) {
     // 获取默认主机
     let host = cpal::default_host();
 
@@ -22,7 +21,8 @@ fn record(sender: Sender<Vec<f32>>) {
 
     println!("Using default input format: {:?}", config);
     // 构建输入流配置
-    let config: StreamConfig = config.into();
+    let mut config = device.default_input_config().unwrap().config();
+    config.sample_rate.0 = 48000;
     println!("{} {}", config.channels, config.sample_rate.0);
 
     // 构建并运行输入流
@@ -33,11 +33,6 @@ fn record(sender: Sender<Vec<f32>>) {
                 // 这里的 `data` 包含了捕获的音频数据
                 // 你可以在这里处理数据，比如写入文件等
                 println!("send: {}", data.len() * 4);
-                let vec = data.to_vec();
-                let vec = vf32_to_vu8(vec);
-
-                let t = zstd::encode_all(vec.as_slice(), 0).unwrap();
-                println!("{}", t.len());
 
                 sender.send(data.into()).unwrap();
             },
@@ -62,14 +57,14 @@ fn record(sender: Sender<Vec<f32>>) {
 }
 
 fn main() {
-    let (s, r) = mpsc::channel::<Vec<_>>();
+    let (s, r) = mpsc::sync_channel::<Vec<_>>(1);
     let t = thread::spawn(move || record(s));
 
     let host = cpal::default_host();
     let device = host.default_output_device().unwrap();
     let config: StreamConfig = device.default_output_config().unwrap().into();
-    // println!("buffer {:?}", config.buffer_size.clone());
-    let mut n = 0;
+    println!("buffer {}", config.sample_rate.0);
+    // let mut n = 0;
     let stream = device
         .build_output_stream(
             &config,
@@ -77,11 +72,11 @@ fn main() {
                 //这里怎么写
                 match r.recv() {
                     Ok(v) => {
-                        if n < 2 {
-                            println!("revc {};   data:{}", v.len(), data.len());
-                            data[0..v.len()].copy_from_slice(&v);
-                        }
-                        n += 1;
+                        // if n < 2 {
+                        println!("revc {};   data:{}", v.len(), data.len());
+                        data[0..v.len()].copy_from_slice(&v);
+                        // }
+                        // n += 1;
                     }
                     Err(_) => {
                         // bc.wait();

@@ -25,8 +25,8 @@ pub async fn wait(
     name: &str,
 ) -> Result<Connection> {
     // 音频设备
-    let (a_input_send, a_input_recv) = std::sync::mpsc::channel::<Vec<f32>>();
-    let (a_output_send, a_output_recv) = std::sync::mpsc::channel::<Vec<f32>>();
+    let (a_input_send, a_input_recv) = std::sync::mpsc::sync_channel::<Vec<f32>>(1);
+    let (a_output_send, a_output_recv) = std::sync::mpsc::sync_channel::<Vec<f32>>(1);
 
     let a_input_recv_a = Arc::new(tokio::sync::Mutex::new(a_input_recv));
     let a_output_send_a = Arc::new(tokio::sync::Mutex::new(a_output_send.clone()));
@@ -38,8 +38,8 @@ pub async fn wait(
     // 视频设备
     let mut cam = make_cam()?;
     info!("摄像头启动");
-    let (vinput_send, vinput_recv) = std::sync::mpsc::channel::<Vec<u8>>();
-    let (voutput_send, voutput_recv) = std::sync::mpsc::channel::<Vec<u8>>();
+    let (vinput_send, vinput_recv) = std::sync::mpsc::sync_channel::<Vec<u8>>(1);
+    let (voutput_send, voutput_recv) = std::sync::mpsc::sync_channel::<Vec<u8>>(1);
     let vinput_recv_a = Arc::new(tokio::sync::Mutex::new(vinput_recv));
     let voutput_send_a = Arc::new(tokio::sync::Mutex::new(voutput_send.clone()));
     /////////////////////////////////////////////

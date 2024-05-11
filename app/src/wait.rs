@@ -14,7 +14,7 @@ use opencv::videoio::VideoCapture;
 use quic::Connection;
 use tauri::async_runtime::{self, Mutex};
 
-use crate::App;
+use crate::{App, A_LEN, V_LEN};
 
 #[tauri::command]
 /// 初始化
@@ -55,8 +55,8 @@ pub async fn wait_inner(
     let endp = make_endpoint(EndpointType::Client("0.0.0.0:0".parse()?))?;
 
     // 音频设备
-    let (a_input_send, a_input_recv) = std::sync::mpsc::channel::<Vec<f32>>();
-    let (a_output_send, a_output_recv) = std::sync::mpsc::channel::<Vec<f32>>();
+    let (a_input_send, a_input_recv) = std::sync::mpsc::sync_channel::<Vec<f32>>(A_LEN);
+    let (a_output_send, a_output_recv) = std::sync::mpsc::sync_channel::<Vec<f32>>(A_LEN);
 
     let a_input_recv_a = Arc::new(Mutex::new(a_input_recv));
     let a_output_send_a = Arc::new(Mutex::new(a_output_send.clone()));
@@ -68,8 +68,8 @@ pub async fn wait_inner(
     // 视频设备
     // let mut cam = make_cam()?;
     // info!("摄像头启动");
-    let (vinput_send, vinput_recv) = std::sync::mpsc::channel::<Vec<u8>>();
-    let (voutput_send, voutput_recv) = std::sync::mpsc::channel::<Vec<u8>>();
+    let (vinput_send, vinput_recv) = std::sync::mpsc::sync_channel::<Vec<u8>>(V_LEN);
+    let (voutput_send, voutput_recv) = std::sync::mpsc::sync_channel::<Vec<u8>>(V_LEN);
     let vinput_recv_a = Arc::new(Mutex::new(vinput_recv));
     let voutput_send_a = Arc::new(Mutex::new(voutput_send.clone()));
     /////////////////////////////////////////////

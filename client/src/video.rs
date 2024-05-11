@@ -38,7 +38,7 @@ pub fn display_c(recv: std::sync::mpsc::Receiver<Vec<u8>>) -> anyhow::Result<()>
 
 pub fn capture_c(
     cam: &mut VideoCapture,
-    send: std::sync::mpsc::Sender<Vec<u8>>,
+    send: std::sync::mpsc::SyncSender<Vec<u8>>,
 ) -> anyhow::Result<()> {
     let mut frame = Mat::default();
     loop {
@@ -59,7 +59,7 @@ pub fn capture_c(
 pub async fn video_chanel(
     v_conn: quic::Connection,
     input_recv: Arc<tokio::sync::Mutex<std::sync::mpsc::Receiver<Vec<u8>>>>,
-    output_send: Arc<tokio::sync::Mutex<std::sync::mpsc::Sender<Vec<u8>>>>,
+    output_send: Arc<tokio::sync::Mutex<std::sync::mpsc::SyncSender<Vec<u8>>>>,
 ) {
     let input_recv_c = input_recv.clone();
     let output_send_c = output_send.clone();

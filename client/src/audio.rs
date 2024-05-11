@@ -7,15 +7,14 @@ use cpal::{
 };
 use tracing::{debug, error, info};
 
-pub fn make_input_stream(send: std::sync::mpsc::Sender<Vec<f32>>) -> cpal::Stream {
+pub fn make_input_stream(send: std::sync::mpsc::SyncSender<Vec<f32>>) -> cpal::Stream {
     // 获取默认主机
     let host = cpal::default_host();
     // 获取默认输入设备
     let device = host.default_input_device().unwrap();
     // 获取默认输入格式
-    let config = device.default_input_config().unwrap();
-    // 构建输入流配置
-    let config: StreamConfig = config.into();
+    let mut config = device.default_input_config().unwrap().config();
+    config.sample_rate.0 = 48000;
 
     // 构建并运行输入流
     let stream = device
@@ -35,7 +34,8 @@ pub fn make_input_stream(send: std::sync::mpsc::Sender<Vec<f32>>) -> cpal::Strea
 pub fn make_output_stream(recv: std::sync::mpsc::Receiver<Vec<f32>>) -> cpal::Stream {
     let host = cpal::default_host();
     let device = host.default_output_device().unwrap();
-    let config: StreamConfig = device.default_output_config().unwrap().into();
+    let mut config: StreamConfig = device.default_output_config().unwrap().into();
+    config.sample_rate.0 = 48000;
 
     let stream = device
         .build_output_stream(
@@ -57,7 +57,7 @@ pub fn make_output_stream(recv: std::sync::mpsc::Receiver<Vec<f32>>) -> cpal::St
 pub async fn audio_uni(
     a_conn: quic::Connection,
     input_recv: Arc<tokio::sync::Mutex<std::sync::mpsc::Receiver<Vec<f32>>>>,
-    output_send: Arc<tokio::sync::Mutex<std::sync::mpsc::Sender<Vec<f32>>>>,
+    output_send: Arc<tokio::sync::Mutex<std::sync::mpsc::SyncSender<Vec<f32>>>>,
 ) {
     let input_recv_c = input_recv.clone();
     let output_send_c = output_send.clone();

@@ -16,6 +16,9 @@ use opencv::{
 };
 use wait::wait;
 
+
+const A_LEN:usize=1;
+const V_LEN:usize=1;
 struct App {
     pub client: Arc<std::sync::Mutex<Option<Client>>>,
 }
@@ -29,7 +32,7 @@ fn main() {
         .setup(|app| {
             let main_window = tauri::Manager::get_window(app, "main").unwrap();
             tauri::async_runtime::spawn(async move {
-                std::thread::sleep(std::time::Duration::from_millis(500));
+                std::thread::sleep(std::time::Duration::from_millis(600));
                 main_window.show().unwrap();
             });
 
@@ -170,7 +173,7 @@ fn display_c(
 
 fn capture_c(
     cam: Arc<std::sync::Mutex<VideoCapture>>,
-    send: std::sync::mpsc::Sender<Vec<u8>>,
+    send: std::sync::mpsc::SyncSender<Vec<u8>>,
     stop: Arc<std::sync::RwLock<bool>>,
 ) -> anyhow::Result<()> {
     let mut frame = Mat::default();
