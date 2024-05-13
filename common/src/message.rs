@@ -12,8 +12,8 @@ pub enum Message {
     /// 请求服务器可被呼叫用户列表
     QueryUsers,
 
-    /// 请求结束通话
-    Close,
+    // /// 请求结束通话
+    // Close,
 
     /// 服务器回应请求结果
     Response(Res),
@@ -42,7 +42,7 @@ impl Display for Message {
             Message::Wait(name) => format!("等待被呼叫 name({})", name),
             Message::Call(name) => format!("呼叫 name({})", name),
             Message::QueryUsers => "查询等待列表".into(),
-            Message::Close => "关闭通信".into(),
+            // Message::Close => "关闭通信".into(),
             Message::Response(_) => "Result".into(),
             Message::Hello => "Hello".into(),
         };

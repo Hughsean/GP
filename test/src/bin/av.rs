@@ -3,7 +3,7 @@ use cpal::{
     StreamConfig,
 };
 use std::{
-    sync::mpsc::{self, Sender, SyncSender},
+    sync::mpsc::{self, SyncSender},
     thread,
 };
 
