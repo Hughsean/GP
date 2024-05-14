@@ -22,7 +22,7 @@ struct Client {
     pub ctrl: Option<Arc<tokio::sync::Mutex<Option<quic::Connection>>>>,
 }
 
-type ClientMap = Arc<tokio::sync::Mutex<HashMap<String, Client>>>;
+type ClientMap = Arc<tokio::sync::RwLock<HashMap<String, Client>>>;
 
 fn main() {
     tracing_subscriber::fmt()
@@ -39,7 +39,7 @@ fn main() {
 
 #[tokio::main]
 async fn run(_config: Config) -> anyhow::Result<()> {
-    let clients = Arc::new(tokio::sync::Mutex::new(HashMap::new()));
+    let clients = Arc::new(tokio::sync::RwLock::new(HashMap::new()));
 
     let ctrl_listen = "0.0.0.0:12345".parse::<SocketAddr>()?;
     let data_listen = "0.0.0.0:12346".parse::<SocketAddr>()?;

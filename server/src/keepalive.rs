@@ -6,7 +6,7 @@ use tracing::{debug, error, info};
 
 use crate::ClientMap;
 
-pub async fn fun(
+pub async fn guard(
     conn: Arc<tokio::sync::Mutex<Option<Connection>>>,
     clientsc: ClientMap,
     name: String,
@@ -41,7 +41,7 @@ pub async fn fun(
         tokio::time::sleep(Duration::from_millis(1500)).await;
     }
     if self_exit {
-        if let Some(_) = clientsc.lock().await.remove(&name) {
+        if let Some(_) = clientsc.write().await.remove(&name) {
             info!("客户端{name}主动退出等待");
         }
     }

@@ -57,7 +57,7 @@ async fn handle_req(
         Message::Call(name) => call(name, clients, send, data_endp, ctrl_conn).await?,
         // 请求等待呼叫用户列表
         Message::QueryUsers => {
-            let clients_lock = clients.lock().await;
+            let clients_lock = clients.read().await;
             let mut v = vec![];
             for e in clients_lock.keys() {
                 v.push(e.clone())

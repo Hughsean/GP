@@ -11,7 +11,7 @@ pub async fn call(
     data_endp: Endpoint,
     ctrl_conn: Connection,
 ) -> anyhow::Result<()> {
-    let mut clients_lock = clients.lock().await;
+    let mut clients_lock = clients.write().await;
 
     debug!("获取锁");
 

@@ -4,7 +4,7 @@ use common::message::{Message, Res};
 use quic::{Connection, SendStream};
 use tracing::info;
 
-use crate::{keepalive::fun, Client, ClientMap};
+use crate::{keepalive::guard, Client, ClientMap};
 
 pub async fn wait(
     name: String,
@@ -12,7 +12,7 @@ pub async fn wait(
     mut send: SendStream,
     ctrl_conn: Connection,
 ) -> anyhow::Result<()> {
-    let mut clients_lock = clients.lock().await;
+    let mut clients_lock = clients.write().await;
 
     if clients_lock.contains_key(&name) {
         // 用户名重复
@@ -56,7 +56,7 @@ pub async fn wait(
         let clientsc = clients.clone();
         let namec = name.clone();
         // 客户端保活
-        tokio::spawn(fun(ctrl_c, clientsc, namec));
+        tokio::spawn(guard(ctrl_c, clientsc, namec));
 
         clients_lock.insert(
             name,
