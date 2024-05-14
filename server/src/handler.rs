@@ -73,7 +73,7 @@ async fn handle_req(
                 .await?;
             send.finish().await?;
         }
-        _ => return Err(anyhow!("时序错误")),
+        _ => return Err(anyhow!("请求错误")),
     }
     Ok(())
 }
