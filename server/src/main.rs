@@ -27,7 +27,7 @@ type ClientMap = Arc<tokio::sync::Mutex<HashMap<String, Client>>>;
 fn main() {
     tracing_subscriber::fmt()
         .with_line_number(true)
-        .with_env_filter("server=debug")
+        .with_env_filter("server=info")
         // .with_max_level(Level::DEBUG)
         .init();
 

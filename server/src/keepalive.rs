@@ -45,5 +45,5 @@ pub async fn fun(
             info!("客户端{name}主动退出等待");
         }
     }
-    debug!("保活线程退出");
+    info!("保活线程退出");
 }

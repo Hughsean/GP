@@ -1,7 +1,7 @@
 use anyhow::anyhow;
 
 use quic::{Connection, Endpoint, SendStream};
-use tracing::{debug, info, warn};
+use tracing::{info, warn};
 
 use crate::{call::call, wait::wait, ClientMap};
 use common::message::{Message, Res};
@@ -66,7 +66,7 @@ async fn handle_req(
             let msg = Message::Response(Res::UserList(v));
             send.write_all(&msg.to_vec_u8()).await.unwrap();
             send.finish().await?;
-            debug!("查询结束")
+            info!("查询结束")
         }
         Message::Hello => {
             send.write_all(&Message::Response(Res::Ok).to_vec_u8())

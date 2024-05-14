@@ -48,7 +48,6 @@ pub async fn wait(
         //     }
         // }
 
-        info!("音视频连接建立");
         info!("name({}) 加入等待接听列表", name);
 
         let ctrl = Arc::new(tokio::sync::Mutex::new(Some(ctrl_conn.clone())));
