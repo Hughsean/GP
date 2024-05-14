@@ -16,9 +16,8 @@ use opencv::{
 };
 use wait::wait;
 
-
-const A_LEN:usize=1;
-const V_LEN:usize=1;
+const A_LEN: usize = 1;
+const V_LEN: usize = 1;
 struct App {
     pub client: Arc<std::sync::Mutex<Option<Client>>>,
 }
@@ -31,6 +30,11 @@ fn main() {
     tauri::Builder::default()
         .setup(|app| {
             let main_window = tauri::Manager::get_window(app, "main").unwrap();
+            #[cfg(debug_assertions)]
+            {
+                main_window.open_devtools();
+                // main_window.close_devtools();
+            }
             tauri::async_runtime::spawn(async move {
                 std::thread::sleep(std::time::Duration::from_millis(600));
                 main_window.show().unwrap();

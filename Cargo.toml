@@ -1,7 +1,7 @@
 [workspace]
 members = ["test", "server", "client", "common", "app"]
 # default-members = ["quinn", "quinn-proto", "quinn-udp", "bench", "perf"]
-resolver = "2"
+# resolver = "2"
 
 # 122.51.128.39
 
