@@ -27,11 +27,7 @@ tracing-subscriber = { version = "0.3.18", features = [
 ] }
 
 tracing = "0.1.40"
-criterion = { version = "0.5.1", features = [
-    "html_reports",
-    "async_tokio",
-    "async_futures",
-] }
+criterion = { version = "0.5.1", features = ["html_reports", "async_tokio", "async_futures", "csv", "csv_output"] }
 
 tokio-rustls = "0.23.1"
 tokio-native-tls = "0.3.0"
