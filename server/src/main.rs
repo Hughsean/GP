@@ -19,7 +19,7 @@ struct Client {
     /// 视频连接
     pub v_conn: Option<quic::Connection>,
     /// 保活线程使用的连接句柄
-    pub ctrl: Option<Arc<tokio::sync::Mutex<Option<quic::Connection>>>>,
+    pub ctrl: Option<Arc<tokio::sync::RwLock<Option<quic::Connection>>>>,
 }
 
 type ClientMap = Arc<tokio::sync::RwLock<HashMap<String, Client>>>;
@@ -27,7 +27,7 @@ type ClientMap = Arc<tokio::sync::RwLock<HashMap<String, Client>>>;
 fn main() {
     tracing_subscriber::fmt()
         .with_line_number(true)
-        .with_env_filter("server=info")
+        .with_env_filter("server=debug,common=debug")
         // .with_max_level(Level::DEBUG)
         .init();
 

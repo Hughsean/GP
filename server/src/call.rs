@@ -13,7 +13,7 @@ pub async fn call(
 ) -> anyhow::Result<()> {
     let mut clients_lock = clients.write().await;
 
-    debug!("获取锁");
+    debug!("获取用户字典锁");
 
     let msg;
     let contains = clients_lock.contains_key(&name);
@@ -50,7 +50,7 @@ pub async fn call(
 
     let mut c_passive = clients_lock.remove(&name).unwrap();
     // 停止等待
-    let _ = c_passive.ctrl.clone().unwrap().lock().await.take();
+    let _ = c_passive.ctrl.clone().unwrap().write().await.take();
     debug!("保活线程停止");
 
     // 唤醒被呼叫者

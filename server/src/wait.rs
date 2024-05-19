@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use common::message::{Message, Res};
 use quic::{Connection, SendStream};
-use tracing::info;
+use tracing::{debug, info};
 
 use crate::{guard::guard, Client, ClientMap};
 
@@ -14,6 +14,7 @@ pub async fn wait(
 ) -> anyhow::Result<()> {
     let mut clients_lock = clients.write().await;
 
+    debug!("获取用户字典锁");
     if clients_lock.contains_key(&name) {
         // 用户名重复
         info!("用户名({})重复", name);
@@ -50,16 +51,16 @@ pub async fn wait(
 
         info!("name({}) 加入等待接听列表", name);
 
-        let ctrl = Arc::new(tokio::sync::Mutex::new(Some(ctrl_conn.clone())));
+        let ctrl = Arc::new(tokio::sync::RwLock::new(Some(ctrl_conn.clone())));
         let ctrl_c = ctrl.clone();
         let ctrl = Some(ctrl);
         let clientsc = clients.clone();
         let namec = name.clone();
         // 客户端保活
         tokio::spawn(guard(ctrl_c, clientsc, namec));
-
+        debug!("创建守护任务发送线程池");
         clients_lock.insert(
-            name,
+            name.clone(),
             Client {
                 ctrl_conn,
                 a_conn: None,
@@ -67,6 +68,7 @@ pub async fn wait(
                 ctrl,
             },
         );
+        debug!("用户{}信息写入用户字典", name);
         info!("WAIT 请求处理完成");
         Ok(())
     }

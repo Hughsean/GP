@@ -14,7 +14,6 @@ pub enum Message {
 
     // /// 请求结束通话
     // Close,
-
     /// 服务器回应请求结果
     Response(Res),
 }
@@ -30,12 +29,23 @@ pub enum Res {
 
 impl Message {
     pub fn to_vec_u8(&self) -> Vec<u8> {
+        if let Message::Response(r) = self {
+            match r {
+                Res::Ok => debug!("响应 Res::Ok"),
+                Res::Err => debug!("响应 Res::Err"),
+                Res::Wait => debug!("响应 Res::Wait"),
+                Res::Wake => debug!("响应 Res::Wake"),
+                Res::UserList(_) => debug!("响应 Res::UserList"),
+            }
+        }
         let json = serde_json::to_vec(&self).unwrap();
         json
     }
 }
 
 use std::fmt::Display;
+
+use tracing::debug;
 impl Display for Message {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let str = match self {

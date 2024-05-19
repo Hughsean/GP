@@ -7,16 +7,17 @@ use tracing::{debug, error, info};
 use crate::ClientMap;
 
 pub async fn guard(
-    conn: Arc<tokio::sync::Mutex<Option<Connection>>>,
+    conn: Arc<tokio::sync::RwLock<Option<Connection>>>,
     clientsc: ClientMap,
     name: String,
 ) {
-    debug!("保活线程创建");
+    debug!("守护线程创建");
     let wait = Message::Response(Res::Wait);
     let exit = async {
         loop {
-            let ctrl_lock = conn.lock().await;
+            let ctrl_lock = conn.read().await;
             if ctrl_lock.is_none() {
+                debug!("用户{name}被呼叫, 守卫任务退出");
                 break anyhow::Ok(());
             } else {
                 match ctrl_lock.clone().unwrap().open_bi().await {
@@ -32,7 +33,7 @@ pub async fn guard(
                         //     self_exit = true;
                         //     break;
                         // }
-                        debug!("发送保活信息");
+                        // debug!("发送保活信息");
                     }
                     Err(e) => {
                         // self_exit = true;
@@ -50,9 +51,11 @@ pub async fn guard(
     .await;
 
     if exit.is_err() {
+        debug!("报文发送失败, 守卫任务退出");
+        info!("用户{name}主动退出等待");
         if let Some(_) = clientsc.write().await.remove(&name) {
-            info!("客户端{name}主动退出等待");
+            debug!("从用户字典移除用户{name}信息");
         }
     }
-    info!("保活线程退出");
+    info!("守护线程退出");
 }
