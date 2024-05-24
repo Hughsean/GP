@@ -10,7 +10,6 @@ use tracing::{debug, error, info};
 
 use crate::DELAY;
 
-
 pub fn display_c(recv: std::sync::mpsc::Receiver<Vec<u8>>) -> anyhow::Result<()> {
     loop {
         match recv.recv() {
@@ -111,29 +110,28 @@ pub async fn video_chanel(
     info!("音频结束");
 }
 
-
 pub fn make_cam() -> anyhow::Result<VideoCapture> {
-    let cam = videoio::VideoCapture::new(0, videoio::CAP_ANY).unwrap();
+    let cam = videoio::VideoCapture::new(0, videoio::CAP_ANY)?;
 
-    info!(
-        "摄像头 画面宽度: {}",
-        cam.get(videoio::CAP_PROP_FRAME_WIDTH)?
-    );
-    info!(
-        "摄像头 画面高度: {}",
-        cam.get(videoio::CAP_PROP_FRAME_HEIGHT)?
-    );
-    info!("摄像头 FPS: {}", cam.get(opencv::videoio::CAP_PROP_FPS)?);
+    #[cfg(debug_assertions)]
+    {
+        info!(
+            "摄像头 画面宽度: {}",
+            cam.get(videoio::CAP_PROP_FRAME_WIDTH)?
+        );
+        info!(
+            "摄像头 画面高度: {}",
+            cam.get(videoio::CAP_PROP_FRAME_HEIGHT)?
+        );
+        info!("摄像头 FPS: {}", cam.get(opencv::videoio::CAP_PROP_FPS)?);
+    }
 
     if videoio::VideoCapture::is_opened(&cam)? {
         Ok(cam)
     } else {
-        Err(anyhow!(""))
+        Err(anyhow!("摄像设备申请失败"))
     }
 }
-
-
-
 
 #[allow(dead_code)]
 pub async fn video(v_conn: quic::Connection, mut cam: VideoCapture) {

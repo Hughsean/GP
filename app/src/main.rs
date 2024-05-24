@@ -90,7 +90,7 @@ fn init(addr: &str, name: &str, state: tauri::State<App>, win: tauri::Window) {
 
                 Ok(())
             } else {
-                Err(anyhow::anyhow!(""))
+                Err(anyhow::anyhow!("11111"))
             }
         }
         .await;
