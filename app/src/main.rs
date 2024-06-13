@@ -16,8 +16,8 @@ use opencv::{
 };
 use wait::wait;
 
-const A_LEN: usize = 1;
-const V_LEN: usize = 1;
+const A_LEN: usize = 20;
+const V_LEN: usize = 3;
 struct App {
     pub client: Arc<std::sync::Mutex<Option<Client>>>,
 }
